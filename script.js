@@ -487,18 +487,19 @@ const App = {
         
         // Detect bright rectangular regions (signs are usually high-contrast)
         const signs = [];
-        const gridSize = 40; // Check in 40px blocks
-        const brightnessThreshold = 140; // Bright areas
+        const gridSize = 60; // Larger blocks = fewer false positives
+        const brightnessThreshold = 180; // MUCH higher threshold (signs are VERY bright)
         
         for (let y = 0; y < targetHeight - gridSize; y += gridSize) {
             for (let x = 0; x < targetWidth - gridSize; x += gridSize) {
                 let brightPixels = 0;
                 let redCount = 0;
                 let greenCount = 0;
+                let darkPixels = 0;
                 
                 // Sample pixels in this grid cell
-                for (let dy = 0; dy < gridSize; dy += 4) {
-                    for (let dx = 0; dx < gridSize; dx += 4) {
+                for (let dy = 0; dy < gridSize; dy += 6) {
+                    for (let dx = 0; dx < gridSize; dx += 6) {
                         const i = ((y + dy) * targetWidth + (x + dx)) * 4;
                         const r = data[i];
                         const g = data[i + 1];
@@ -506,16 +507,22 @@ const App = {
                         const brightness = (r + g + b) / 3;
                         
                         if (brightness > brightnessThreshold) brightPixels++;
-                        if (r > 150 && r > g * 1.5 && r > b * 1.5) redCount++; // Red signs
-                        if (g > 150 && g > r * 1.2) greenCount++; // Green signals
+                        if (brightness < 80) darkPixels++; // Signs have dark elements too
+                        
+                        // Very strict color detection
+                        if (r > 200 && g < 100 && b < 100) redCount++; // Pure red
+                        if (g > 200 && r < 100 && g > b * 1.5) greenCount++; // Pure green
                     }
                 }
                 
-                // If this region is bright enough, mark as potential sign
-                const totalSamples = (gridSize / 4) * (gridSize / 4);
+                // MUCH stricter criteria
+                const totalSamples = (gridSize / 6) * (gridSize / 6);
                 const brightRatio = brightPixels / totalSamples;
+                const darkRatio = darkPixels / totalSamples;
+                const hasContrast = brightRatio > 0.3 && darkRatio > 0.2; // Signs have high contrast
                 
-                if (brightRatio > 0.4 || redCount > 10 || greenCount > 10) {
+                // Only detect if VERY strong red/green signal AND high contrast
+                if ((redCount > 25 || greenCount > 25) && hasContrast) {
                     // This looks like a sign!
                     signs.push({
                         label: '🔍 Analyzing Sign...',
@@ -525,7 +532,7 @@ const App = {
                             gridSize / targetWidth,
                             gridSize / targetHeight
                         ],
-                        color: greenCount > redCount ? 'green' : (redCount > 10 ? 'red' : 'yellow'),
+                        color: greenCount > redCount ? 'green' : 'red',
                         confidence: 0.3,
                         source: 'generic' // Generic detector
                     });
@@ -533,8 +540,9 @@ const App = {
             }
         }
         
-        // Merge overlapping detections
-        return this.mergeOverlappingBoxes(signs);
+        // Merge overlapping detections and limit to top 5
+        const merged = this.mergeOverlappingBoxes(signs);
+        return merged.slice(0, 5); // Max 5 generic detections to prevent spam
     },
     
     /**
