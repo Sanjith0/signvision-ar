@@ -37,7 +37,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     logger.error("GEMINI_API_KEY not found in environment")
     logger.error("Make sure .env file exists with: GEMINI_API_KEY=your_key")
-else:
+        else:
     genai.configure(api_key=GEMINI_API_KEY)
     logger.info("✅ Gemini API configured successfully")
 
@@ -84,64 +84,60 @@ async def analyze_image(request: AnalyzeRequest):
         }]
         
         # Prompt for traffic sign and hazard detection
-        prompt = """Analyze this image for SIGNS and SIGNALS ONLY. DO NOT detect people or pedestrians.
+        prompt = """TRAFFIC SIGNS AND ROAD SIGNS ONLY. Ignore everything else.
 
-Detect ONLY these physical SIGNS/SIGNALS:
+DO NOT DETECT:
+❌ People, pedestrians, humans
+❌ Vehicles (cars, trucks, bikes)
+❌ Objects (phones, bags, etc.)
+❌ Animals
 
-1. **Pedestrian Signs** (the physical signs themselves):
-   - White rectangular/square sign with person symbol + red circle/diagonal line → "No Walk Sign"
-   - Yellow diamond sign with person walking symbol → "Pedestrian Crossing"
+ONLY DETECT THESE ROAD SIGNS:
+
+1. **Pedestrian Signs** (physical signs on poles):
+   - White square sign with person + red circle/diagonal line → "No Walk Sign"
+   - Yellow diamond sign with walking person symbol → "Pedestrian Crossing"
    
-2. **Pedestrian Traffic Signals** (electronic signals):
-   - Walk signal with green/white walking person or hand → "Walk Signal - Green"
-   - Don't Walk signal with red hand or person → "Don't Walk - Red"
+2. **Pedestrian Signals** (traffic light type):
+   - Walk signal (green hand/person) → "Walk Signal - Green"
+   - Don't Walk signal (red hand/person) → "Don't Walk - Red"
    
 3. **Traffic Control Signs**:
-   - Stop sign (red octagon)
-   - Yield sign (red/white triangle)
-   - Speed limit signs
-   - No entry, one way, etc.
+   - Stop sign (red octagon) → "Stop Sign"
+   - Yield sign → "Yield Sign"
+   - Speed limit signs → "Speed Limit [number]"
+   - One way, no entry, etc.
    
 4. **Traffic Lights**:
-   - Red light
-   - Yellow light
-   - Green light
+   - "Traffic Light - Red"
+   - "Traffic Light - Yellow"
+   - "Traffic Light - Green"
 
-5. **Warning/Hazard Signs**:
-   - Construction signs (orange)
-   - Road hazard warnings
+5. **Warning Signs**:
+   - Construction signs
+   - Curve warning
+   - Merge warning
 
-CRITICAL RULES:
-- IGNORE all people/pedestrians in the scene
-- ONLY detect the physical SIGNS and SIGNALS
-- A person silhouette ON a sign means it IS a sign (not a person detection)
-- White square + red circle/slash = "No Walk Sign"
-- Yellow diamond + person = "Pedestrian Crossing"
+STRICT RULES:
+- ONLY detect mounted signs and signals
+- Ignore all people, even if near signs
+- Ignore all vehicles
+- Ignore all handheld objects
+- If you see a person silhouette ON a sign, that's a SIGN not a person
 
-For each detected SIGN/SIGNAL, provide:
-1. Precise label describing the SIGN (e.g., "No Walk Sign", "Pedestrian Crossing", "Stop Sign")
-2. Bounding box [x, y, width, height] as percentages (0-100)
-3. Confidence score (0-100)
-
-Return ONLY valid JSON array:
+Response format (JSON only):
 [
   {
     "label": "No Walk Sign",
-    "bbox": [45.2, 30.1, 12.5, 18.3],
+    "bbox": [x, y, width, height],
     "color": "red",
     "confidence": 95
-  },
-  {
-    "label": "Pedestrian Crossing",
-    "bbox": [65.0, 35.0, 10.0, 15.0],
-    "color": "yellow",
-    "confidence": 90
   }
 ]
 
-Colors: red (danger/stop), yellow (caution), green (safe/go), blue (info), orange (construction)
+Colors: red (danger), yellow (caution), green (safe), blue (info), orange (construction)
 
-If no SIGNS detected, return: []"""
+If no SIGNS, return: []"""
         
         # Generate content
         response = model.generate_content([prompt, image_parts[0]])
