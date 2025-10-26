@@ -435,7 +435,7 @@ const App = {
         // Whitelist of ONLY traffic sign classes we want
         const ALLOWED_CLASSES = ['traffic light', 'stop sign'];
         
-        return predictions
+        const detections = predictions
             .filter(pred => ALLOWED_CLASSES.includes(pred.class)) // Only allow traffic signs
             .map(pred => {
                 const mapping = this.mapCocoClassToLabel(pred.class);
@@ -457,6 +457,124 @@ const App = {
                 };
             })
             .filter(d => d !== null);
+        
+        // Add generic sign detector for pedestrian signals and other signs
+        // that COCO-SSD can't detect
+        const genericSigns = this.detectGenericSigns();
+        return [...detections, ...genericSigns];
+    },
+    
+    /**
+     * Detect sign-shaped objects using edge/color detection
+     * This catches pedestrian signals and other signs COCO-SSD misses
+     */
+    detectGenericSigns() {
+        if (!this.canvas2d) {
+            this.canvas2d = document.createElement('canvas');
+            this.ctx2d = this.canvas2d.getContext('2d', { willReadFrequently: true });
+        }
+        
+        // Use a smaller canvas for speed
+        const targetWidth = 640;
+        const targetHeight = 480;
+        this.canvas2d.width = targetWidth;
+        this.canvas2d.height = targetHeight;
+        
+        // Draw current video frame
+        this.ctx2d.drawImage(this.video, 0, 0, targetWidth, targetHeight);
+        const imageData = this.ctx2d.getImageData(0, 0, targetWidth, targetHeight);
+        const data = imageData.data;
+        
+        // Detect bright rectangular regions (signs are usually high-contrast)
+        const signs = [];
+        const gridSize = 40; // Check in 40px blocks
+        const brightnessThreshold = 140; // Bright areas
+        
+        for (let y = 0; y < targetHeight - gridSize; y += gridSize) {
+            for (let x = 0; x < targetWidth - gridSize; x += gridSize) {
+                let brightPixels = 0;
+                let redCount = 0;
+                let greenCount = 0;
+                
+                // Sample pixels in this grid cell
+                for (let dy = 0; dy < gridSize; dy += 4) {
+                    for (let dx = 0; dx < gridSize; dx += 4) {
+                        const i = ((y + dy) * targetWidth + (x + dx)) * 4;
+                        const r = data[i];
+                        const g = data[i + 1];
+                        const b = data[i + 2];
+                        const brightness = (r + g + b) / 3;
+                        
+                        if (brightness > brightnessThreshold) brightPixels++;
+                        if (r > 150 && r > g * 1.5 && r > b * 1.5) redCount++; // Red signs
+                        if (g > 150 && g > r * 1.2) greenCount++; // Green signals
+                    }
+                }
+                
+                // If this region is bright enough, mark as potential sign
+                const totalSamples = (gridSize / 4) * (gridSize / 4);
+                const brightRatio = brightPixels / totalSamples;
+                
+                if (brightRatio > 0.4 || redCount > 10 || greenCount > 10) {
+                    // This looks like a sign!
+                    signs.push({
+                        label: '🔍 Analyzing Sign...',
+                        bbox: [
+                            x / targetWidth,
+                            y / targetHeight,
+                            gridSize / targetWidth,
+                            gridSize / targetHeight
+                        ],
+                        color: greenCount > redCount ? 'green' : (redCount > 10 ? 'red' : 'yellow'),
+                        confidence: 0.3,
+                        source: 'generic' // Generic detector
+                    });
+                }
+            }
+        }
+        
+        // Merge overlapping detections
+        return this.mergeOverlappingBoxes(signs);
+    },
+    
+    /**
+     * Merge overlapping bounding boxes
+     */
+    mergeOverlappingBoxes(boxes) {
+        if (boxes.length === 0) return [];
+        
+        const merged = [];
+        const used = new Set();
+        
+        for (let i = 0; i < boxes.length; i++) {
+            if (used.has(i)) continue;
+            
+            let mergedBox = { ...boxes[i] };
+            used.add(i);
+            
+            for (let j = i + 1; j < boxes.length; j++) {
+                if (used.has(j)) continue;
+                
+                const iou = this.calculateIoU(boxes[i].bbox, boxes[j].bbox);
+                if (iou > 0.3) {
+                    // Merge boxes by taking the union
+                    const [x1, y1, w1, h1] = mergedBox.bbox;
+                    const [x2, y2, w2, h2] = boxes[j].bbox;
+                    
+                    const minX = Math.min(x1, x2);
+                    const minY = Math.min(y1, y2);
+                    const maxX = Math.max(x1 + w1, x2 + w2);
+                    const maxY = Math.max(y1 + h1, y2 + h2);
+                    
+                    mergedBox.bbox = [minX, minY, maxX - minX, maxY - minY];
+                    used.add(j);
+                }
+            }
+            
+            merged.push(mergedBox);
+        }
+        
+        return merged;
     },
     
     /**
@@ -838,13 +956,13 @@ const App = {
             const message = detection.label.replace(/[🚦🛑🚶✨]/g, '').trim();
             
             if (message !== this.lastSpokenLabel) {
-                this.speechSynth.cancel();
-                const utterance = new SpeechSynthesisUtterance(message);
-                utterance.rate = 0.9;
-                utterance.pitch = 1.0;
-                utterance.volume = 0.8;
-                this.speechSynth.speak(utterance);
-                
+            this.speechSynth.cancel();
+            const utterance = new SpeechSynthesisUtterance(message);
+            utterance.rate = 0.9;
+            utterance.pitch = 1.0;
+            utterance.volume = 0.8;
+            this.speechSynth.speak(utterance);
+            
                 this.lastSpokenLabel = message;
                 this.lastSpeechTime = now;
             }
@@ -978,7 +1096,7 @@ const App = {
                 this.showError('Fall detected! Paused for safety.');
             }
             if (!this.isRecording) this.startRecording();
-        }
+            }
     },
     
     initStorage() {
