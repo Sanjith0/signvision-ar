@@ -84,41 +84,46 @@ async def analyze_image(request: AnalyzeRequest):
         }]
         
         # Prompt for traffic sign and hazard detection
-        prompt = """Analyze this image for SIGNS and SIGNALS only. Distinguish between signs and people.
+        prompt = """Analyze this image for SIGNS and SIGNALS ONLY. DO NOT detect people or pedestrians.
 
-CRITICAL: Look for physical SIGNS with symbols on them, NOT actual people walking.
+Detect ONLY these physical SIGNS/SIGNALS:
 
-Detect these SIGNS/SIGNALS ONLY:
-1. **Pedestrian Signs** (physical signs, not people):
-   - "No Pedestrian Sign" (white with red circle/slash) → label as "No Walk Sign"
-   - "Pedestrian Crossing Sign" (yellow diamond with person) → label as "Walk Sign" or "Pedestrian Crossing"
+1. **Pedestrian Signs** (the physical signs themselves):
+   - White rectangular/square sign with person symbol + red circle/diagonal line → "No Walk Sign"
+   - Yellow diamond sign with person walking symbol → "Pedestrian Crossing"
    
-2. **Pedestrian Signals** (traffic light type):
-   - Walk signal (green/white hand or person) → label as "Walk Signal - Green"
-   - Don't Walk signal (red hand or person) → label as "Don't Walk - Red"
+2. **Pedestrian Traffic Signals** (electronic signals):
+   - Walk signal with green/white walking person or hand → "Walk Signal - Green"
+   - Don't Walk signal with red hand or person → "Don't Walk - Red"
    
-3. **Traffic Signs**:
-   - Stop signs, yield signs, speed limit signs, etc.
+3. **Traffic Control Signs**:
+   - Stop sign (red octagon)
+   - Yield sign (red/white triangle)
+   - Speed limit signs
+   - No entry, one way, etc.
    
 4. **Traffic Lights**:
-   - Specify color/state (red, yellow, green)
+   - Red light
+   - Yellow light
+   - Green light
 
-5. **Actual Pedestrians**:
-   - ONLY if there's a real person in the scene (not on a sign)
-   - Label as "Pedestrian" only if it's a living person
+5. **Warning/Hazard Signs**:
+   - Construction signs (orange)
+   - Road hazard warnings
 
-IMPORTANT:
-- Do NOT confuse sign symbols with real people
-- A person silhouette ON a sign = it's a SIGN, not a pedestrian
-- White square signs with person + red circle = "No Walk Sign"
-- Yellow diamond signs with person = "Pedestrian Crossing" or "Walk Sign"
+CRITICAL RULES:
+- IGNORE all people/pedestrians in the scene
+- ONLY detect the physical SIGNS and SIGNALS
+- A person silhouette ON a sign means it IS a sign (not a person detection)
+- White square + red circle/slash = "No Walk Sign"
+- Yellow diamond + person = "Pedestrian Crossing"
 
-For each detected object, provide:
-1. Precise label (e.g., "No Walk Sign", "Walk Signal - Green", "Stop Sign")
-2. Bounding box coordinates [x, y, width, height] as percentages (0-100)
+For each detected SIGN/SIGNAL, provide:
+1. Precise label describing the SIGN (e.g., "No Walk Sign", "Pedestrian Crossing", "Stop Sign")
+2. Bounding box [x, y, width, height] as percentages (0-100)
 3. Confidence score (0-100)
 
-Return ONLY valid JSON array with this exact format:
+Return ONLY valid JSON array:
 [
   {
     "label": "No Walk Sign",
@@ -136,7 +141,7 @@ Return ONLY valid JSON array with this exact format:
 
 Colors: red (danger/stop), yellow (caution), green (safe/go), blue (info), orange (construction)
 
-If nothing detected, return: []"""
+If no SIGNS detected, return: []"""
         
         # Generate content
         response = model.generate_content([prompt, image_parts[0]])
