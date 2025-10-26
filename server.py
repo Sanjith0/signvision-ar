@@ -135,6 +135,17 @@ Response format (JSON only):
   }
 ]
 
+BBOX FORMAT:
+- [x, y, width, height] as percentages (0-100)
+- x: horizontal position from LEFT edge (0 = left, 100 = right)
+- y: vertical position from TOP edge (0 = top, 100 = bottom)
+- width: horizontal size (typically 10-30)
+- height: vertical size (typically 10-30)
+- ALL VALUES MUST BE BETWEEN 0 AND 100!
+
+Example: Sign at 25% from left, 30% from top, 15% wide, 20% tall:
+  "bbox": [25, 30, 15, 20]
+
 Colors: red (danger), yellow (caution), green (safe), blue (info), orange (construction)
 
 If no SIGNS, return: []"""
