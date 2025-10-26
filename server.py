@@ -147,6 +147,9 @@ If no SIGNS, return: []"""
             # Extract JSON from response
             text = response.text.strip()
             
+            # Log raw response for debugging
+            logger.info(f"Gemini response (first 200 chars): {text[:200]}")
+            
             # Remove markdown code blocks if present
             if text.startswith("```json"):
                 text = text[7:]
@@ -156,25 +159,50 @@ If no SIGNS, return: []"""
                 text = text[:-3]
             text = text.strip()
             
+            # Handle empty or non-JSON responses
+            if not text or text == "[]":
+                logger.info("Gemini returned no detections")
+                return AnalyzeResponse(
+                    detections=[],
+                    processing_time_ms=(time.time() - start_time) * 1000
+                )
+            
             import json
             detections_data = json.loads(text)
+            
+            # Validate it's a list
+            if not isinstance(detections_data, list):
+                logger.error(f"Gemini returned non-list: {type(detections_data)}")
+                return AnalyzeResponse(
+                    detections=[],
+                    processing_time_ms=(time.time() - start_time) * 1000
+                )
             
             # Convert to Detection objects
             detections = []
             for det in detections_data:
-                # Normalize bbox from percentage to 0-1
-                bbox = [det["bbox"][i] / 100.0 for i in range(4)]
-                
-                detections.append(Detection(
-                    label=det["label"],
-                    bbox=bbox,
-                    color=det.get("color", "yellow"),
-                    confidence=det.get("confidence", 0) / 100.0
-                ))
+                try:
+                    # Validate required fields
+                    if "label" not in det or "bbox" not in det:
+                        logger.warning(f"Skipping detection missing required fields: {det}")
+                        continue
+                    
+                    # Normalize bbox from percentage to 0-1
+                    bbox = [det["bbox"][i] / 100.0 for i in range(4)]
+                    
+                    detections.append(Detection(
+                        label=det["label"],
+                        bbox=bbox,
+                        color=det.get("color", "yellow"),
+                        confidence=det.get("confidence", 50) / 100.0
+                    ))
+                except Exception as e:
+                    logger.warning(f"Skipping invalid detection {det}: {e}")
+                    continue
             
             processing_time = (time.time() - start_time) * 1000
             
-            logger.info(f"Detected {len(detections)} objects in {processing_time:.0f}ms")
+            logger.info(f"✅ Detected {len(detections)} objects in {processing_time:.0f}ms")
             
             return AnalyzeResponse(
                 detections=detections,
@@ -182,9 +210,16 @@ If no SIGNS, return: []"""
             )
             
         except json.JSONDecodeError as e:
-            logger.error(f"JSON parse error: {e}")
-            logger.error(f"Response text: {response.text}")
+            logger.error(f"❌ JSON parse error: {e}")
+            logger.error(f"Response text (full): {response.text}")
             # Return empty detections on parse error
+            return AnalyzeResponse(
+                detections=[],
+                processing_time_ms=(time.time() - start_time) * 1000
+            )
+        except Exception as e:
+            logger.error(f"❌ Unexpected error parsing response: {e}")
+            logger.error(f"Response text: {response.text}")
             return AnalyzeResponse(
                 detections=[],
                 processing_time_ms=(time.time() - start_time) * 1000
