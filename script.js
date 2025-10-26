@@ -359,66 +359,48 @@ const App = {
     
     /**
      * Convert COCO-SSD predictions to our detection format
+     * ONLY traffic signs (filters out people, cars, etc)
      */
     convertPredictionsToDetections(predictions) {
-        return predictions.map(pred => {
-            // Normalize bounding box to [0, 1] range
-            const bbox = [
-                pred.bbox[0] / this.video.videoWidth,  // x
-                pred.bbox[1] / this.video.videoHeight, // y
-                pred.bbox[2] / this.video.videoWidth,  // width
-                pred.bbox[3] / this.video.videoHeight  // height
-            ];
-            
-            // Map COCO class to color and better label
-            const { label, color } = this.mapCocoClassToLabel(pred.class);
-            
-            return {
-                label: label,
-                bbox: bbox,
-                color: color,
-                confidence: pred.score
-            };
-        });
+        return predictions
+            .map(pred => {
+                // Map COCO class to traffic sign
+                const mapping = this.mapCocoClassToLabel(pred.class);
+                
+                // Skip non-traffic objects (people, cars, etc)
+                if (!mapping) return null;
+                
+                // Normalize bounding box to [0, 1] range
+                const bbox = [
+                    pred.bbox[0] / this.video.videoWidth,  // x
+                    pred.bbox[1] / this.video.videoHeight, // y
+                    pred.bbox[2] / this.video.videoWidth,  // width
+                    pred.bbox[3] / this.video.videoHeight  // height
+                ];
+                
+                return {
+                    label: mapping.label,
+                    bbox: bbox,
+                    color: mapping.color,
+                    confidence: pred.score
+                };
+            })
+            .filter(d => d !== null); // Remove filtered objects
     },
     
     /**
-     * Map COCO-SSD classes to relevant labels and colors for road/traffic context
+     * Map COCO-SSD classes to traffic signs only
+     * Filters out people, vehicles, and other objects
      */
     mapCocoClassToLabel(cocoClass) {
         const mappings = {
-            // Vehicles
-            'car': { label: '🚗 Car', color: 'blue' },
-            'truck': { label: '🚛 Truck', color: 'blue' },
-            'bus': { label: '🚌 Bus', color: 'blue' },
-            'motorcycle': { label: '🏍️ Motorcycle', color: 'orange' },
-            'bicycle': { label: '🚲 Bicycle', color: 'green' },
-            
-            // People and pedestrians
-            'person': { label: '🚶 Person', color: 'red' },
-            
-            // Traffic signals
+            // ONLY Traffic Signs and Signals
             'traffic light': { label: '🚦 Traffic Light', color: 'yellow' },
             'stop sign': { label: '🛑 Stop Sign', color: 'red' },
-            
-            // Animals
-            'dog': { label: '🐕 Dog', color: 'orange' },
-            'cat': { label: '🐈 Cat', color: 'orange' },
-            'bird': { label: '🐦 Bird', color: 'green' },
-            
-            // Objects
-            'backpack': { label: '🎒 Backpack', color: 'blue' },
-            'umbrella': { label: '☂️ Umbrella', color: 'blue' },
-            'handbag': { label: '👜 Handbag', color: 'blue' },
-            'suitcase': { label: '🧳 Suitcase', color: 'blue' },
-            
-            // Barriers
-            'fire hydrant': { label: '🚰 Fire Hydrant', color: 'red' },
-            'parking meter': { label: '🅿️ Parking Meter', color: 'blue' },
-            'bench': { label: '🪑 Bench', color: 'green' },
         };
         
-        return mappings[cocoClass] || { label: cocoClass, color: 'yellow' };
+        // Return null for non-traffic objects (will be filtered out)
+        return mappings[cocoClass] || null;
     },
     
     /**
@@ -698,7 +680,7 @@ const App = {
     },
     
     /**
-     * Generate audio feedback
+     * Generate audio feedback for traffic signs
      */
     generateAudioFeedback(detections) {
         if (!this.speechSynth) return;
@@ -706,15 +688,15 @@ const App = {
         const now = Date.now();
         if (now - this.lastSpeechTime < 3000) return; // Throttle speech
         
+        // Only speak for traffic signs (stop signs are high priority)
         const importantDetections = detections.filter(d => {
             const label = d.label.toLowerCase();
-            return label.includes('stop') || label.includes('person') || 
-                   label.includes('car') || label.includes('traffic');
+            return label.includes('stop') || label.includes('traffic');
         });
         
         if (importantDetections.length > 0) {
             const detection = importantDetections[0];
-            const message = detection.label.replace(/[🚗🚛🚌🏍️🚲🚶🚦🛑🐕🐈🐦🎒☂️👜🧳🚰🅿️🪑]/g, '').trim();
+            const message = detection.label.replace(/[🚦🛑]/g, '').trim();
             
             if (message !== this.lastSpokenLabel) {
                 this.speechSynth.cancel();
