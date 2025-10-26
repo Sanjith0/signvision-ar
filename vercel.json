@@ -1,0 +1,17 @@
+{
+  "rewrites": [
+    {
+      "source": "/analyze",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/models",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/analyze-fallback",
+      "destination": "/api/index"
+    }
+  ]
+}
+
