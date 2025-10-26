@@ -78,6 +78,7 @@ const App = {
     // Audio announcements for signs
     announcedLabels: new Set(),
     audioQueue: [],
+    audioEnabled: false, // Requires user interaction to enable
     
     // Camera motion tracking
     gyroData: { alpha: 0, beta: 0, gamma: 0 },
@@ -693,6 +694,12 @@ const App = {
     announceSign(label) {
         console.log(`🎤 announceSign called with: "${label}"`);
         
+        // Check if audio is enabled
+        if (!this.audioEnabled) {
+            console.log(`   🔇 Audio disabled - click "Enable Audio" button`);
+            return;
+        }
+        
         // Don't re-announce the same label within 10 seconds
         if (this.announcedLabels.has(label)) {
             console.log(`   ⏭️  Skipped (already announced recently)`);
@@ -716,6 +723,32 @@ const App = {
         if (this.audioQueue.length === 1) {
             console.log(`   ▶️  Starting audio queue processing`);
             this.processAudioQueue();
+        }
+    },
+    
+    /**
+     * Toggle audio announcements
+     */
+    toggleAudio() {
+        this.audioEnabled = !this.audioEnabled;
+        const btn = document.getElementById('audioToggle');
+        
+        if (this.audioEnabled) {
+            btn.textContent = '🔊 Audio On';
+            btn.style.background = '#27ae60';
+            console.log('🔊 Audio announcements ENABLED');
+            
+            // Prime the speech synthesis with a test utterance
+            if ('speechSynthesis' in window) {
+                const test = new SpeechSynthesisUtterance('Audio enabled');
+                test.volume = 0.01; // Very quiet
+                window.speechSynthesis.speak(test);
+                console.log('   🎤 Speech synthesis primed');
+            }
+        } else {
+            btn.textContent = '🔇 Enable Audio';
+            btn.style.background = '#f39c12';
+            console.log('🔇 Audio announcements DISABLED');
         }
     },
     
