@@ -207,6 +207,7 @@ const App = {
         document.getElementById('start-btn').addEventListener('click', () => this.startDetection());
         document.getElementById('pause-btn').addEventListener('click', () => this.togglePause());
         document.getElementById('record-btn').addEventListener('click', () => this.toggleRecording());
+        document.getElementById('audioToggle').addEventListener('click', () => this.toggleAudio());
         document.getElementById('settings-btn').addEventListener('click', () => this.openSettings());
         document.getElementById('close-settings').addEventListener('click', () => this.closeSettings());
         
