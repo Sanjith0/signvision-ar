@@ -732,9 +732,12 @@ const App = {
     toggleAudio() {
         this.audioEnabled = !this.audioEnabled;
         const btn = document.getElementById('audioToggle');
+        const icon = btn.querySelector('.icon');
+        const text = btn.querySelector('span:not(.icon)');
         
         if (this.audioEnabled) {
-            btn.textContent = '🔊 Audio On';
+            icon.textContent = '🔊';
+            text.textContent = 'Audio On';
             btn.style.background = '#27ae60';
             console.log('🔊 Audio announcements ENABLED');
             
@@ -746,7 +749,8 @@ const App = {
                 console.log('   🎤 Speech synthesis primed');
             }
         } else {
-            btn.textContent = '🔇 Enable Audio';
+            icon.textContent = '🔇';
+            text.textContent = 'Enable Audio';
             btn.style.background = '#f39c12';
             console.log('🔇 Audio announcements DISABLED');
         }
