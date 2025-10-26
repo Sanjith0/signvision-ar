@@ -485,45 +485,58 @@ const App = {
         const imageData = this.ctx2d.getImageData(0, 0, targetWidth, targetHeight);
         const data = imageData.data;
         
-        // Detect bright rectangular regions (signs are usually high-contrast)
+        // Detect sign-colored regions
         const signs = [];
-        const gridSize = 60; // Larger blocks = fewer false positives
-        const brightnessThreshold = 180; // MUCH higher threshold (signs are VERY bright)
+        const gridSize = 50; // Balance between speed and accuracy
         
         for (let y = 0; y < targetHeight - gridSize; y += gridSize) {
             for (let x = 0; x < targetWidth - gridSize; x += gridSize) {
                 let brightPixels = 0;
                 let redCount = 0;
                 let greenCount = 0;
+                let yellowCount = 0;
+                let whiteCount = 0;
                 let darkPixels = 0;
                 
                 // Sample pixels in this grid cell
-                for (let dy = 0; dy < gridSize; dy += 6) {
-                    for (let dx = 0; dx < gridSize; dx += 6) {
+                for (let dy = 0; dy < gridSize; dy += 5) {
+                    for (let dx = 0; dx < gridSize; dx += 5) {
                         const i = ((y + dy) * targetWidth + (x + dx)) * 4;
                         const r = data[i];
                         const g = data[i + 1];
                         const b = data[i + 2];
                         const brightness = (r + g + b) / 3;
                         
-                        if (brightness > brightnessThreshold) brightPixels++;
-                        if (brightness < 80) darkPixels++; // Signs have dark elements too
+                        // Count pixels by type
+                        if (brightness > 200) brightPixels++; // Very bright (white areas)
+                        if (brightness < 60) darkPixels++; // Dark borders/symbols
                         
-                        // Very strict color detection
-                        if (r > 200 && g < 100 && b < 100) redCount++; // Pure red
-                        if (g > 200 && r < 100 && g > b * 1.5) greenCount++; // Pure green
+                        // Detect sign colors (more lenient)
+                        if (r > 180 && g < 100 && b < 100) redCount++; // Red
+                        if (g > 180 && r < 120 && g > b * 1.3) greenCount++; // Green  
+                        if (r > 200 && g > 200 && b < 120) yellowCount++; // Yellow (warning signs)
+                        if (r > 200 && g > 200 && b > 200) whiteCount++; // White (regulatory signs)
                     }
                 }
                 
-                // MUCH stricter criteria
-                const totalSamples = (gridSize / 6) * (gridSize / 6);
+                const totalSamples = (gridSize / 5) * (gridSize / 5);
                 const brightRatio = brightPixels / totalSamples;
                 const darkRatio = darkPixels / totalSamples;
-                const hasContrast = brightRatio > 0.3 && darkRatio > 0.2; // Signs have high contrast
                 
-                // Only detect if VERY strong red/green signal AND high contrast
-                if ((redCount > 25 || greenCount > 25) && hasContrast) {
-                    // This looks like a sign!
+                // High contrast requirement (signs have bright AND dark)
+                const hasContrast = brightRatio > 0.25 && darkRatio > 0.15;
+                
+                // Detect if has sign colors AND high contrast
+                const hasYellow = yellowCount > 15; // Yellow warning signs
+                const hasRedAndWhite = redCount > 8 && whiteCount > 20; // Red/white regulatory
+                const hasGreen = greenCount > 15; // Green walk signals
+                
+                if (hasContrast && (hasYellow || hasRedAndWhite || hasGreen)) {
+                    // Determine color
+                    let color = 'yellow';
+                    if (hasGreen) color = 'green';
+                    else if (hasRedAndWhite) color = 'red';
+                    
                     signs.push({
                         label: '🔍 Analyzing Sign...',
                         bbox: [
@@ -532,17 +545,17 @@ const App = {
                             gridSize / targetWidth,
                             gridSize / targetHeight
                         ],
-                        color: greenCount > redCount ? 'green' : 'red',
+                        color: color,
                         confidence: 0.3,
-                        source: 'generic' // Generic detector
+                        source: 'generic'
                     });
                 }
             }
         }
         
-        // Merge overlapping detections and limit to top 5
+        // Merge overlapping detections and limit to top 10
         const merged = this.mergeOverlappingBoxes(signs);
-        return merged.slice(0, 5); // Max 5 generic detections to prevent spam
+        return merged.slice(0, 10); // Max 10 to prevent spam but allow multiple signs
     },
     
     /**
