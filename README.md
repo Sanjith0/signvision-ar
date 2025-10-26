@@ -1,195 +1,197 @@
-# SignVision AR - Professional Grade Object Tracking
+# SignVision AR 🚀
 
-> **Advanced AR Edition** with Google Lens-style tracking, motion prediction, and camera compensation
+**Real-time AI-powered AR object detection app** - No backend required!
 
-Real-time road sign detection with **professional-grade AR tracking** for visually impaired users. Labels stick to objects in 3D space like Google Lens, ARCore, and ARKit.
+Built with **TensorFlow.js** + **COCO-SSD** for instant object detection running entirely in your browser.
 
-## 🎯 Key Features
+## 🌟 Features
 
-### Professional AR Tracking
-- ✅ **Kalman-like prediction** - Predicts object positions between detections
-- ✅ **Camera motion compensation** - Uses gyroscope/accelerometer data
-- ✅ **Adaptive smoothing** - More responsive for fast-moving objects
-- ✅ **Multi-criteria matching** - IoU + center distance for robust tracking
-- ✅ **Persistent labels** - Objects stay visible for 2 seconds without detection
-- ✅ **10-frame prediction** - Continues tracking temporarily out-of-view objects
-
-### Detection Speed
-- ⚡ **6.6 FPS detection** (150ms intervals)
-- ⚡ **512x384 resolution** for 8x faster processing
-- ⚡ **40% image quality** for maximum speed
-- ⚡ Pure **Gemini AI backend** (no local models needed)
-
-### Visual Design
-- 🎨 **Google Lens style** - Rounded labels, modern UI
-- 🎨 **Active vs tracked** - Different styles for detected vs predicted objects
-- 🎨 **Glow effects** - Active detections have glowing borders
-- 🎨 **System fonts** - Native look and feel
+- ✅ **Pure Client-Side** - No servers, no APIs, works offline!
+- ⚡ **Real-time Detection** - 10+ FPS with local AI processing
+- 🎯 **Advanced AR Tracking** - Labels stick to objects in 3D space (Google Lens style)
+- 📱 **Mobile Optimized** - Works on iOS and Android
+- 🔊 **Voice Feedback** - Audio alerts for important detections
+- 📹 **Dashcam Mode** - Record video with detections
+- 🌐 **PWA** - Install as native app, works offline
+- 🚶 **Fall Detection** - Emergency pause and recording
 
 ## 🚀 Quick Start
 
-### Requirements
-- Python 3.9+
-- Google Gemini API key
-- Modern browser with camera access
+### Option 1: Local Development
 
-### Local Development
-
-1. **Clone and setup**:
 ```bash
+# Clone the repo
+git clone https://github.com/YOUR_USERNAME/SignVision-AR.git
 cd SignVision-AR
-pip install -r requirements.txt
+
+# Serve with any HTTP server
+python3 -m http.server 8080
+# OR
+npx serve
+# OR
+php -S localhost:8080
 ```
 
-2. **Configure environment**:
+Open `http://localhost:8080` in your browser!
+
+### Option 2: Deploy to Static Hosting
+
+Deploy to **ANY** static hosting service for FREE:
+
+#### Vercel (Recommended)
 ```bash
-cp env.example .env
-# Add your GEMINI_API_KEY to .env
+npm install -g vercel
+cd SignVision-AR
+vercel
 ```
 
-3. **Run server**:
+Or use the [Vercel Dashboard](https://vercel.com/new) - just drag and drop!
+
+#### Netlify
 ```bash
-python server.py
-# Or: ./run_server.sh
+npm install -g netlify-cli
+cd SignVision-AR
+netlify deploy --prod
 ```
 
-4. **Open browser**:
-```
-http://localhost:8000
-```
+Or use [Netlify Drop](https://app.netlify.com/drop) - drag and drop!
 
-### Deploy to Vercel
-
-1. **Push to GitHub**:
+#### GitHub Pages
 ```bash
-git add -A
-git commit -m "Initial commit - SignVision AR"
-git remote add origin https://github.com/YOUR_USERNAME/signvision-ar.git
-git push -u origin main
+# Push to GitHub
+git push origin main
+
+# Enable GitHub Pages in repo settings
+# Set source to 'main' branch, '/' folder
 ```
 
-2. **Deploy on Vercel**:
-   - Go to [vercel.com](https://vercel.com)
-   - Click "Add New" → "Project"
-   - Import your GitHub repository
-   - Add environment variable: `GEMINI_API_KEY`
-   - Click "Deploy"
+#### Cloudflare Pages
+1. Go to [Cloudflare Pages](https://pages.cloudflare.com/)
+2. Connect your GitHub repo
+3. Deploy!
 
-## 📱 How AR Tracking Works
+## 📱 Mobile Usage
 
-### Object Lifecycle
-```
-Detection → Match to existing track → Update position with smoothing
-    ↓              ↓                           ↓
-New object?   Lost object?              Still tracking?
-    ↓              ↓                           ↓
-Create track   Predict position        Keep label stuck!
-               for 2 seconds
-```
+1. **iOS**: Safari → Share → Add to Home Screen
+2. **Android**: Chrome → Menu → Add to Home Screen
 
-### Tracking Algorithm
-1. **Predict** next positions using velocity + camera motion
-2. **Match** detections using IoU + center distance
-3. **Update** positions with adaptive smoothing
-4. **Persist** labels for 2 seconds even without detection
-5. **Remove** very stale objects (>2s or >10 missed frames)
-
-### Camera Motion Compensation
-- Uses device **gyroscope** for rotation tracking
-- Uses device **accelerometer** for motion detection
-- Compensates label positions based on camera movement
-- Makes labels appear "stuck" to real-world objects
+The app works as a native AR experience!
 
 ## 🎮 Controls
 
-- **Start** - Begin real-time detection
-- **Pause** - Freeze current detections
-- **Record** - Start dashcam recording (30s clips)
-- **Settings** - Adjust voice alerts, sensitivity, etc.
+- **▶ Start** - Begin real-time detection
+- **⏸ Pause** - Pause detection
+- **● Record** - Start/stop dashcam recording
+- **⚙️ Settings** - Configure voice, sensitivity, etc.
 
-## 🔧 Configuration
+## 🧠 How It Works
 
-Key parameters in `script.js`:
+1. **Camera Access** - Uses rear camera for environment scanning
+2. **TensorFlow.js** - Loads COCO-SSD model (~13MB, cached after first load)
+3. **Real-time Detection** - Processes video frames at 10+ FPS
+4. **AR Tracking** - Tracks objects across frames using:
+   - Intersection over Union (IoU) matching
+   - Motion prediction with Kalman-like filtering
+   - Camera motion compensation via device sensors
+   - Exponential smoothing for stable labels
+5. **Visual Overlay** - Draws bounding boxes that "stick" to objects
 
-```javascript
-processingInterval: 150,     // Detection frequency (ms)
-trackingThreshold: 0.15,     // IoU matching threshold
-smoothingFactor: 0.25,       // Position smoothing strength
-maxTrackingAge: 2000,        // Keep labels for 2 seconds
-maxMissedFrames: 10,         // Predict up to 10 frames
-minConfidence: 0.25          // Minimum detection confidence
-```
+## 🎯 Detected Objects
 
-## 🏗️ Architecture
+Currently detects **80 common objects** including:
+- 🚗 Vehicles (cars, trucks, buses, motorcycles, bicycles)
+- 🚶 People and pedestrians
+- 🚦 Traffic lights and stop signs
+- 🐕 Animals (dogs, cats, birds)
+- 🎒 Common objects (backpacks, umbrellas, etc.)
 
-### Frontend (`script.js`)
-- Camera capture & AR overlay
-- Professional object tracking with motion prediction
-- Device sensor integration (gyro, accel)
-- Real-time canvas rendering
+## 🔧 Technical Stack
 
-### Backend (`server.py` / `api/index.py`)
-- FastAPI server for local development
-- Serverless function for Vercel deployment
-- Google Gemini AI vision processing
-- Detection result formatting
+- **Frontend**: Vanilla JavaScript (no frameworks!)
+- **AI Model**: TensorFlow.js + COCO-SSD
+- **AR Tracking**: Custom object tracking with motion prediction
+- **Camera**: WebRTC getUserMedia API
+- **Audio**: Web Speech Synthesis API
+- **Storage**: IndexedDB for recordings
+- **PWA**: Service Worker for offline support
 
-## 🎯 Detection Types
+## 📊 Performance
 
-- 🚶 **Pedestrians** (Yellow)
-- 🚗 **Vehicles** (Yellow)
-- 🛑 **Stop Signs** (Red)
-- 🚦 **Traffic Lights** (Red)
-- 🚲 **Bicycles** (Yellow)
-- 🏍️ **Motorcycles** (Yellow)
-- 🐕 **Animals** (Yellow)
-
-## 🌐 Browser Support
-
-- ✅ Chrome/Edge (desktop & mobile)
-- ✅ Safari (iOS 14+)
-- ✅ Firefox (desktop)
-- ⚠️ Requires HTTPS for camera access
-
-## 📦 Technologies
-
-- **Frontend**: Vanilla JavaScript, Canvas API, Web APIs
-- **Backend**: Python, FastAPI, Google Gemini AI
-- **Deployment**: Vercel (serverless)
-- **PWA**: Service Worker, Web App Manifest
+- **Model Size**: ~13 MB (downloaded once, cached forever)
+- **Load Time**: ~2-3 seconds (first visit), instant after
+- **FPS**: 10-30 FPS depending on device
+- **Latency**: <100ms per frame (all processing local!)
 
 ## 🔒 Privacy
 
-- All camera processing is real-time
-- No video/images stored on servers
-- Dashcam recordings stored locally (IndexedDB)
-- Only detection metadata sent to API
+- **100% Local** - All AI processing happens in your browser
+- **No Data Sent** - No servers, no tracking, no data collection
+- **Offline Capable** - Works without internet after first load
+- **Camera Only** - Only uses camera for real-time detection
+
+## 🛠️ Configuration
+
+Edit `script.js` to customize:
+
+```javascript
+config: {
+    processingInterval: 100, // ms between detections
+    minConfidence: 0.25,     // Detection threshold
+    maxTrackingAge: 2000,    // How long labels persist (ms)
+    smoothingFactor: 0.25    // Label stability (lower = smoother)
+}
+```
 
 ## 🐛 Troubleshooting
 
-### Labels jumping around?
-- Check device motion permissions
-- Ensure smooth camera movement
-- Adjust `smoothingFactor` (lower = smoother)
+**Model not loading?**
+- Ensure you have internet connection for first load
+- Check browser console for errors
+- Try clearing cache and refreshing
 
-### Slow detection?
-- Check network connection to Gemini API
-- Reduce `processingInterval` (150ms recommended)
-- Ensure good lighting conditions
+**Camera not working?**
+- Allow camera permissions
+- Use HTTPS (required for camera access)
+- Check if camera is in use by another app
 
-### Objects not tracking?
-- Adjust `trackingThreshold` (lower = more lenient)
-- Check `maxTrackingAge` setting
-- Ensure objects are clearly visible
+**Slow performance?**
+- Close other tabs/apps
+- Increase `processingInterval` in settings
+- Use Chrome/Safari for best performance
+
+**Labels not sticking?**
+- Enable device motion sensors (Settings → Motion & Orientation)
+- Keep device steady during initial detection
 
 ## 📄 License
 
-MIT License - feel free to use and modify!
+MIT License - Free to use and modify!
 
-## 🙏 Credits
+## 🤝 Contributing
 
-Built with Google Gemini AI for real-time vision processing.
+Pull requests welcome! Please:
+1. Test on both iOS and Android
+2. Maintain <100ms frame processing time
+3. Keep the app lightweight (no heavy dependencies)
+
+## 🎯 Roadmap
+
+- [ ] Custom traffic sign model (YOLO-based)
+- [ ] Multiple object tracking IDs on screen
+- [ ] Distance estimation using camera calibration
+- [ ] Audio navigation assistance
+- [ ] Offline maps integration
+- [ ] Custom model training interface
+
+## 💡 Credits
+
+Built with:
+- [TensorFlow.js](https://www.tensorflow.org/js)
+- [COCO-SSD Model](https://github.com/tensorflow/tfjs-models/tree/master/coco-ssd)
+- Love for accessible technology ❤️
 
 ---
 
-**SignVision AR** - Professional AR tracking for accessibility 🎯✨
+**Made for accessibility.** Empowering visually impaired users with real-time AR object detection.
+
+🌟 Star this repo if you find it useful!

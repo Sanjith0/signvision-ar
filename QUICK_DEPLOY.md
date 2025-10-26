@@ -23,6 +23,7 @@ git push -u origin main
 ```
 
 **If you get an authentication error**, you may need to use a Personal Access Token:
+
 - Go to GitHub Settings → Developer settings → Personal access tokens
 - Generate new token with `repo` scope
 - Use it as your password when pushing
@@ -87,16 +88,19 @@ vercel --prod
 ## ⚡ Performance Tips
 
 ### If detection is slow:
+
 - Check your internet connection
 - Ensure good lighting
 - Gemini API processes in ~200-500ms
 
 ### If labels are jumpy:
+
 - Ensure smooth camera movement
 - Check device motion permissions (iOS: Settings → Safari)
 - Try adjusting `smoothingFactor` in `script.js` (lower = smoother)
 
 ### If objects aren't tracking:
+
 - Ensure clear, distinct objects
 - Good lighting conditions
 - Stable camera movement
@@ -129,20 +133,24 @@ maxMissedFrames: 10,      // Frames to predict without detection
 ## 🐛 Common Issues
 
 ### "Connection error"
+
 - ✅ Check `GEMINI_API_KEY` is set in Vercel
 - ✅ Verify API key is valid
 - ✅ Check Vercel function logs
 
 ### "Camera not available"
+
 - ✅ Must use HTTPS (Vercel provides this)
 - ✅ Grant camera permissions
 - ✅ Try different browser
 
 ### "Model load failed"
+
 - ✅ Not applicable (we use Gemini backend now)
 - ✅ Check network connection
 
 ### Labels not sticking
+
 - ✅ Check device motion permissions
 - ✅ Ensure smooth camera movement
 - ✅ Try on mobile device (better sensors)
@@ -150,18 +158,21 @@ maxMissedFrames: 10,      // Frames to predict without detection
 ## 🎓 Understanding the Tech
 
 ### Why is this fast?
+
 - 6.6 FPS detection (every 150ms)
 - Small images (512x384)
 - Low quality (40%) = fast upload
 - Gemini AI processes quickly
 
 ### Why do labels stick?
+
 - **Object tracking** matches detections across frames
 - **Motion prediction** using velocity
 - **Camera compensation** using gyroscope
 - **Smoothing** for stable positioning
 
 ### Why Gemini backend?
+
 - No model download needed
 - Works on any device
 - High-quality detections
@@ -170,11 +181,13 @@ maxMissedFrames: 10,      // Frames to predict without detection
 ## 📊 Monitoring
 
 ### Vercel Dashboard
+
 - View deployment status
 - Check function logs
 - Monitor usage/performance
 
 ### Browser Console
+
 - See detection times
 - Track object IDs
 - Debug issues
@@ -201,4 +214,3 @@ You now have a **production-grade AR object tracking app** deployed to the world
 ---
 
 Need help? Check the main README.md or create an issue on GitHub!
-
