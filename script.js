@@ -523,13 +523,13 @@ const App = {
                 const brightRatio = brightPixels / totalSamples;
                 const darkRatio = darkPixels / totalSamples;
                 
-                // High contrast requirement (signs have bright AND dark)
-                const hasContrast = brightRatio > 0.25 && darkRatio > 0.15;
+                // Lower contrast requirement (signs have bright AND dark, but threshold was too high)
+                const hasContrast = brightRatio > 0.15 && darkRatio > 0.08;
                 
-                // Detect if has sign colors AND high contrast
-                const hasYellow = yellowCount > 15; // Yellow warning signs
-                const hasRedAndWhite = redCount > 8 && whiteCount > 20; // Red/white regulatory
-                const hasGreen = greenCount > 15; // Green walk signals
+                // Detect if has sign colors (more lenient thresholds)
+                const hasYellow = yellowCount > 8; // Yellow warning signs (was 15)
+                const hasRedAndWhite = redCount > 5 && whiteCount > 12; // Red/white regulatory (was 8/20)
+                const hasGreen = greenCount > 8; // Green walk signals (was 15)
                 
                 if (hasContrast && (hasYellow || hasRedAndWhite || hasGreen)) {
                     // Determine color
@@ -553,8 +553,18 @@ const App = {
             }
         }
         
+        // Debug logging (every 30 frames)
+        if (this.frameCount % 30 === 0 && signs.length > 0) {
+            console.log(`🔍 Generic detector found ${signs.length} potential signs`);
+        }
+        
         // Merge overlapping detections and limit to top 10
         const merged = this.mergeOverlappingBoxes(signs);
+        
+        if (this.frameCount % 30 === 0 && merged.length > 0) {
+            console.log(`✅ After merging: ${merged.length} signs`);
+        }
+        
         return merged.slice(0, 10); // Max 10 to prevent spam but allow multiple signs
     },
     
