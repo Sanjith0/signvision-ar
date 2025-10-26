@@ -187,8 +187,21 @@ If no SIGNS, return: []"""
                         logger.warning(f"Skipping detection missing required fields: {det}")
                         continue
                     
+                    # Validate bbox values are in valid range (0-100)
+                    bbox_raw = det["bbox"]
+                    if len(bbox_raw) != 4:
+                        logger.warning(f"Skipping detection with invalid bbox length: {bbox_raw}")
+                        continue
+                    
+                    # Check all values are between 0-100
+                    if not all(0 <= val <= 100 for val in bbox_raw):
+                        logger.warning(f"⚠️  Invalid bbox (values must be 0-100): {bbox_raw} for {det['label']}")
+                        # Clamp values to valid range
+                        bbox_raw = [max(0, min(100, val)) for val in bbox_raw]
+                        logger.info(f"   Clamped to: {bbox_raw}")
+                    
                     # Normalize bbox from percentage to 0-1
-                    bbox = [det["bbox"][i] / 100.0 for i in range(4)]
+                    bbox = [bbox_raw[i] / 100.0 for i in range(4)]
                     
                     detections.append(Detection(
                         label=det["label"],
@@ -196,6 +209,7 @@ If no SIGNS, return: []"""
                         color=det.get("color", "yellow"),
                         confidence=det.get("confidence", 50) / 100.0
                     ))
+                    logger.info(f"✅ Valid detection: {det['label']} at {bbox}")
                 except Exception as e:
                     logger.warning(f"Skipping invalid detection {det}: {e}")
                     continue
