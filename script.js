@@ -646,10 +646,16 @@ const App = {
             
             // Upgrade label if match found
             if (bestMatch) {
+                const oldLabel = bestMatch.label;
                 bestMatch.label = geminiDet.label;
                 bestMatch.color = geminiDet.color;
                 bestMatch.geminiRefined = true;
                 console.log(`  ✅ Upgraded existing object to: ${bestMatch.label}`);
+                
+                // Announce if this is a new label (not generic "Analyzing Sign...")
+                if (oldLabel !== geminiDet.label && !geminiDet.label.includes('Analyzing')) {
+                    this.announceSign(geminiDet.label);
+                }
             } else {
                 // If no match, create new tracked object from Gemini detection
                 const id = this.nextObjectId++;
@@ -668,8 +674,80 @@ const App = {
                     geminiRefined: true
                 });
                 console.log(`  ✨ Created new Gemini detection: ${geminiDet.label}`);
+                
+                // Announce new detection
+                if (!geminiDet.label.includes('Analyzing')) {
+                    this.announceSign(geminiDet.label);
+                }
             }
         });
+    },
+    
+    /**
+     * Announce a sign label using speech synthesis
+     */
+    announceSign(label) {
+        // Don't re-announce the same label within 10 seconds
+        if (this.announcedLabels.has(label)) {
+            return;
+        }
+        
+        this.announcedLabels.add(label);
+        
+        // Remove from announced set after 10 seconds
+        setTimeout(() => {
+            this.announcedLabels.delete(label);
+        }, 10000);
+        
+        // Add to queue
+        this.audioQueue.push(label);
+        
+        // Process queue if not already processing
+        if (this.audioQueue.length === 1) {
+            this.processAudioQueue();
+        }
+    },
+    
+    /**
+     * Process audio queue one by one
+     */
+    processAudioQueue() {
+        if (this.audioQueue.length === 0) return;
+        
+        const label = this.audioQueue[0];
+        
+        // Clean up label (remove emojis)
+        const cleanLabel = label.replace(/[🚦🛑🔍✨⚠️]/g, '').trim();
+        
+        console.log(`🔊 Announcing: "${cleanLabel}"`);
+        
+        if ('speechSynthesis' in window) {
+            const utterance = new SpeechSynthesisUtterance(cleanLabel);
+            utterance.rate = 1.1; // Slightly faster
+            utterance.pitch = 1.0;
+            utterance.volume = 0.8;
+            
+            utterance.onend = () => {
+                // Remove from queue and process next
+                this.audioQueue.shift();
+                
+                // Small delay between announcements
+                setTimeout(() => {
+                    this.processAudioQueue();
+                }, 500);
+            };
+            
+            utterance.onerror = (e) => {
+                console.error('Speech synthesis error:', e);
+                this.audioQueue.shift();
+                this.processAudioQueue();
+            };
+            
+            window.speechSynthesis.speak(utterance);
+        } else {
+            console.warn('Speech synthesis not supported');
+            this.audioQueue.shift();
+        }
     },
     
     /**
