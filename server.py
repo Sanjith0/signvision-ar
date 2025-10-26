@@ -11,6 +11,10 @@ import os
 import base64
 import logging
 from typing import List, Dict
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -32,9 +36,10 @@ app.add_middleware(
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     logger.error("GEMINI_API_KEY not found in environment")
+    logger.error("Make sure .env file exists with: GEMINI_API_KEY=your_key")
 else:
     genai.configure(api_key=GEMINI_API_KEY)
-    logger.info("Gemini API configured successfully")
+    logger.info("✅ Gemini API configured successfully")
 
 # Request model
 class AnalyzeRequest(BaseModel):
