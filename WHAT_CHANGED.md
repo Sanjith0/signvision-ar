@@ -30,13 +30,13 @@ Your app is now **100% client-side** with traditional computer vision - NO backe
 
 ## 🚀 Performance Improvements
 
-| Metric | Before (Gemini) | After (TensorFlow.js) |
-|--------|-----------------|------------------------|
-| **Detection Speed** | 500-2000ms | **50-150ms** |
-| **Network Latency** | Required | **None** |
-| **FPS** | 1-3 FPS | **10-30 FPS** |
-| **Offline** | ❌ No | **✅ Yes** |
-| **Free Hosting** | ❌ No (needs serverless) | **✅ Yes (static)** |
+| Metric              | Before (Gemini)          | After (TensorFlow.js) |
+| ------------------- | ------------------------ | --------------------- |
+| **Detection Speed** | 500-2000ms               | **50-150ms**          |
+| **Network Latency** | Required                 | **None**              |
+| **FPS**             | 1-3 FPS                  | **10-30 FPS**         |
+| **Offline**         | ❌ No                    | **✅ Yes**            |
+| **Free Hosting**    | ❌ No (needs serverless) | **✅ Yes (static)**   |
 
 **You're now 10-20x faster!** ⚡
 
@@ -47,19 +47,24 @@ Your app is now **100% client-side** with traditional computer vision - NO backe
 **80 common objects** including:
 
 ### Vehicles 🚗
+
 - Cars, trucks, buses, motorcycles, bicycles
 
 ### People 🚶
+
 - Persons, pedestrians
 
 ### Traffic 🚦
+
 - Traffic lights
 - Stop signs
 
 ### Animals 🐕
+
 - Dogs, cats, birds
 
 ### Common Objects 🎒
+
 - Backpacks, umbrellas, handbags, suitcases
 - Benches, fire hydrants, parking meters
 
@@ -85,18 +90,22 @@ SignVision-AR/
 ## 🧠 How It Works Now
 
 1. **Model Load** (first visit only)
+
    - Downloads COCO-SSD model (~13MB)
    - Cached forever in browser
 
 2. **Camera Access**
+
    - Gets rear camera feed
    - Streams video at 1920x1080
 
 3. **Real-time Detection**
+
    - TensorFlow.js processes frames at 10-30 FPS
    - Detects objects with bounding boxes
 
 4. **AR Tracking** (kept from before!)
+
    - IoU-based object matching
    - Motion prediction
    - Camera motion compensation
@@ -147,6 +156,7 @@ Deploy to **any** static hosting:
 ## 🎯 Next Steps
 
 ### Test Locally
+
 ```bash
 cd /Users/sanjith/Downloads/SignVision1/SignVision-AR
 open http://localhost:8080
@@ -157,12 +167,14 @@ Server is already running! Open that URL in your browser.
 ### Deploy to Production
 
 **Easiest Method** (Vercel Dashboard):
+
 1. Go to [vercel.com/new](https://vercel.com/new)
 2. Import your GitHub repo
 3. Click "Deploy"
 4. Done! 🎉
 
 **Or push to GitHub first**:
+
 ```bash
 cd /Users/sanjith/Downloads/SignVision1/SignVision-AR
 git remote add origin https://github.com/YOUR_USERNAME/SignVision-AR.git
@@ -176,11 +188,13 @@ Then deploy from GitHub!
 ## 🐛 Known Limitations
 
 ### COCO-SSD Model
+
 - Only detects 80 common objects
 - Not specifically trained for traffic signs
 - May miss unusual objects
 
 ### Solutions for Better Traffic Detection
+
 1. **Custom YOLO Model** - Train on traffic sign dataset
 2. **MediaPipe** - Add hand/pose tracking
 3. **Multiple Models** - Combine COCO-SSD + custom model
@@ -191,22 +205,23 @@ We can add these later if needed!
 
 ## 📊 Comparison
 
-| Feature | Gemini Backend | TensorFlow.js (Current) |
-|---------|---------------|--------------------------|
-| Detection Speed | 🐢 Slow (500-2000ms) | ⚡ Fast (50-150ms) |
-| Accuracy | 🎯 Excellent (90%+) | ✅ Good (70-85%) |
-| Offline | ❌ No | ✅ Yes |
-| Free Hosting | ❌ No | ✅ Yes |
-| Deployment | 🔧 Complex | 🚀 Simple |
-| Privacy | ⚠️ Data sent to Google | 🔒 100% Local |
-| Cost | 💰 Serverless costs | 💚 Free |
-| Latency | 🌐 Network dependent | ⚡ None |
+| Feature         | Gemini Backend         | TensorFlow.js (Current) |
+| --------------- | ---------------------- | ----------------------- |
+| Detection Speed | 🐢 Slow (500-2000ms)   | ⚡ Fast (50-150ms)      |
+| Accuracy        | 🎯 Excellent (90%+)    | ✅ Good (70-85%)        |
+| Offline         | ❌ No                  | ✅ Yes                  |
+| Free Hosting    | ❌ No                  | ✅ Yes                  |
+| Deployment      | 🔧 Complex             | 🚀 Simple               |
+| Privacy         | ⚠️ Data sent to Google | 🔒 100% Local           |
+| Cost            | 💰 Serverless costs    | 💚 Free                 |
+| Latency         | 🌐 Network dependent   | ⚡ None                 |
 
 ---
 
 ## ✨ What Stayed the Same?
 
 Your **excellent AR tracking logic** is still there:
+
 - IoU-based object matching
 - Motion prediction with velocity
 - Camera motion compensation
@@ -222,6 +237,7 @@ Your **excellent AR tracking logic** is still there:
 ## 🎉 You're Ready!
 
 Your app is now:
+
 - ⚡ **10-20x faster**
 - 💚 **Free to deploy**
 - 🔒 **Privacy-first**
@@ -244,4 +260,3 @@ Open [http://localhost:8080](http://localhost:8080) to test!
 **Questions?** Check the console logs - the app is very verbose about what it's doing!
 
 Happy coding! 🚀
-

@@ -1,7 +1,15 @@
 /**
- * SignVision - Pure Client-Side AR Object Detection
- * Uses TensorFlow.js + COCO-SSD for real-time detection with NO backend!
- * Much faster with advanced AR tracking (Google Lens style)
+ * SignVision - Hybrid YOLO + Gemini AR Detection
+ * 
+ * Architecture:
+ * 1. COCO-SSD (YOLO-like) - Fast local detection for instant AR overlays
+ * 2. Gemini API - Background processing for accurate label refinement
+ * 3. AR Tracking - Smooth, sticky labels in 3D space
+ * 
+ * Flow:
+ * - COCO-SSD detects objects immediately → Shows AR overlays
+ * - Gemini processes same frame in background → Refines labels
+ * - Labels get upgraded when Gemini responds (but AR stays visible)
  */
 
 // Global application state
@@ -17,22 +25,32 @@ const App = {
     isRecording: false,
     modelLoaded: false,
     isProcessing: false,
+    geminiProcessing: false,
     
-    // TensorFlow.js model
-    cocoModel: null,
+    // Detection models
+    cocoModel: null, // Fast local detection (YOLO-like)
     
     // Configuration
     config: {
-        processingInterval: 100, // ms between detections (10 FPS - very fast!)
+        // API endpoint for Gemini (background refinement)
+        apiEndpoint: (() => {
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                return 'http://localhost:8000/analyze';
+            }
+            return '/analyze';
+        })(),
+        processingInterval: 100, // ms between YOLO detections (10 FPS)
+        geminiInterval: 2000, // ms between Gemini refinements (0.5 FPS)
         enableVoice: true,
         detectionSensitivity: 5,
         maxFPS: 30,
-        recordDuration: 30000, // 30 seconds in ms
-        minConfidence: 0.25 // COCO-SSD confidence threshold
+        recordDuration: 30000,
+        minConfidence: 0.3 // COCO-SSD confidence threshold
     },
     
     // Timing and performance
     lastProcessTime: 0,
+    lastGeminiTime: 0,
     frameCount: 0,
     fpsCounter: 0,
     lastFpsUpdate: 0,
@@ -49,13 +67,13 @@ const App = {
     lastDetections: [],
     deviceMotionData: null,
     
-    // AR Object Tracking - labels stick to objects in 3D space (Google Lens style)
+    // AR Object Tracking - labels stick to objects in 3D space
     trackedObjects: new Map(),
     nextObjectId: 0,
-    trackingThreshold: 0.15, // IoU threshold for matching
-    smoothingFactor: 0.25, // Position smoothing (lower = smoother)
-    maxTrackingAge: 2000, // Keep objects visible for 2 seconds
-    maxMissedFrames: 10, // Maximum frames to predict without detection
+    trackingThreshold: 0.2,
+    smoothingFactor: 0.3,
+    maxTrackingAge: 2000,
+    maxMissedFrames: 10,
     
     // Camera motion tracking
     gyroData: { alpha: 0, beta: 0, gamma: 0 },
@@ -68,7 +86,8 @@ const App = {
     storage: null,
     
     async init() {
-        console.log('🚀 SignVision AR initializing...');
+        console.log('🚀 SignVision Hybrid AR initializing...');
+        console.log('📊 Architecture: COCO-SSD (fast) + Gemini (accurate)');
         
         // Get DOM elements
         this.video = document.getElementById('video');
@@ -93,21 +112,20 @@ const App = {
         // Request camera permission on load
         await this.requestCameraPermission();
         
-        // Load TensorFlow.js model
+        // Load COCO-SSD model for fast detection
         await this.loadDetectionModel();
         
-        console.log('✅ SignVision AR initialized');
+        console.log('✅ SignVision Hybrid AR initialized');
     },
     
     /**
-     * Load TensorFlow.js COCO-SSD model for real-time detection
+     * Load COCO-SSD model for fast local detection
      */
     async loadDetectionModel() {
         try {
-            console.log('📦 Loading COCO-SSD detection model...');
-            this.updateModelStatus('Loading AI model...');
+            console.log('📦 Loading COCO-SSD for instant detection...');
+            this.updateModelStatus('Loading Fast AI...');
             
-            // Check if TensorFlow.js is loaded
             if (typeof tf === 'undefined') {
                 throw new Error('TensorFlow.js not loaded');
             }
@@ -116,23 +134,23 @@ const App = {
                 throw new Error('COCO-SSD not loaded');
             }
             
-            // Load COCO-SSD model with optimized base
+            // Load COCO-SSD with optimized base
             this.cocoModel = await cocoSsd.load({
-                base: 'lite_mobilenet_v2' // Faster, lighter model for mobile
+                base: 'lite_mobilenet_v2'
             });
             
             this.modelLoaded = true;
-            console.log('✅ COCO-SSD model loaded successfully!');
-            this.updateModelStatus('AI Ready! 🚀');
+            console.log('✅ COCO-SSD loaded! Instant detection ready.');
+            console.log('🔄 Gemini will refine labels in background.');
+            this.updateModelStatus('Hybrid AR Ready! 🚀');
             
             // Enable start button
             document.getElementById('start-btn').disabled = false;
             
-            // Hide status after 2 seconds
             setTimeout(() => {
                 const header = document.querySelector('.status-bar h1');
-                if (header.textContent.includes('AI Ready')) {
-                    header.textContent = 'SignVision AR';
+                if (header.textContent.includes('Hybrid AR Ready')) {
+                    header.textContent = 'SignVision Hybrid';
                 }
             }, 2000);
             
@@ -143,17 +161,11 @@ const App = {
         }
     },
     
-    /**
-     * Update header with model loading status
-     */
     updateModelStatus(message) {
         const header = document.querySelector('.status-bar h1');
         header.textContent = message;
     },
     
-    /**
-     * Setup device motion sensors for better AR tracking
-     */
     setupMotionSensors() {
         if (window.DeviceOrientationEvent) {
             window.addEventListener('deviceorientation', (e) => {
@@ -164,7 +176,6 @@ const App = {
                     const dBeta = newGyro.beta - this.lastGyro.beta;
                     const dGamma = newGyro.gamma - this.lastGyro.gamma;
                     
-                    // Estimate camera motion from rotation
                     this.cameraMotion.dx = dGamma * 0.01;
                     this.cameraMotion.dy = dBeta * 0.01;
                 }
@@ -188,14 +199,12 @@ const App = {
     },
     
     setupEventListeners() {
-        // Control buttons
         document.getElementById('start-btn').addEventListener('click', () => this.startDetection());
         document.getElementById('pause-btn').addEventListener('click', () => this.togglePause());
         document.getElementById('record-btn').addEventListener('click', () => this.toggleRecording());
         document.getElementById('settings-btn').addEventListener('click', () => this.openSettings());
         document.getElementById('close-settings').addEventListener('click', () => this.closeSettings());
         
-        // Settings controls
         document.getElementById('voice-toggle').addEventListener('change', (e) => {
             this.config.enableVoice = e.target.checked;
         });
@@ -209,7 +218,6 @@ const App = {
             this.config.processingInterval = parseInt(e.target.value);
         });
         
-        // Device motion for fall detection
         if (window.DeviceMotionEvent) {
             window.addEventListener('devicemotion', (e) => {
                 this.handleDeviceMotion(e);
@@ -217,14 +225,11 @@ const App = {
         }
     },
     
-    /**
-     * Request camera access - specifically rear camera
-     */
     async requestCameraPermission() {
         try {
             const constraints = {
                 video: {
-                    facingMode: 'environment', // Rear camera
+                    facingMode: 'environment',
                     width: { ideal: 1920 },
                     height: { ideal: 1080 }
                 }
@@ -234,9 +239,10 @@ const App = {
             this.mediaStream = stream;
             this.video.srcObject = stream;
             
-            // Set canvas dimensions
             this.overlay.width = window.innerWidth;
             this.overlay.height = window.innerHeight;
+            this.capture.width = 512;
+            this.capture.height = 384;
             
             this.updateCameraStatus(true);
             console.log('📷 Camera access granted');
@@ -252,9 +258,6 @@ const App = {
         }
     },
     
-    /**
-     * Start the real-time detection loop
-     */
     async startDetection() {
         if (!this.modelLoaded) {
             this.showError('Model not loaded yet. Please wait...');
@@ -273,19 +276,19 @@ const App = {
         this.isRunning = true;
         this.isPaused = false;
         
-        // Update UI
         document.getElementById('start-btn').disabled = true;
         document.getElementById('pause-btn').disabled = false;
         document.getElementById('loading').classList.add('visible');
         
-        // Start detection loop
         this.detectionLoop();
         
-        console.log('▶️ Detection started - Running locally with TensorFlow.js!');
+        console.log('▶️ Hybrid detection started!');
+        console.log('⚡ COCO-SSD: Instant AR overlays');
+        console.log('🧠 Gemini: Background label refinement');
     },
     
     /**
-     * Main detection loop - ultra-fast local processing!
+     * Main detection loop - Fast COCO-SSD + Background Gemini
      */
     async detectionLoop() {
         if (!this.isRunning || this.isPaused) return;
@@ -293,7 +296,6 @@ const App = {
         const now = Date.now();
         const elapsed = now - this.lastProcessTime;
         
-        // Throttle to respect interval
         if (elapsed < this.config.processingInterval) {
             requestAnimationFrame(() => this.detectionLoop());
             return;
@@ -307,121 +309,213 @@ const App = {
             this.fpsCounter = this.frameCount;
             this.frameCount = 0;
             this.lastFpsUpdate = now;
-            console.log(`⚡ FPS: ${this.fpsCounter}`);
+            console.log(`⚡ FPS: ${this.fpsCounter} (COCO-SSD)`);
         }
         
-        // Process frame if not already processing
+        // FAST: Process with COCO-SSD (instant AR)
         if (!this.isProcessing && this.modelLoaded) {
-            this.processFrameLocal();
+            this.processFrameFast();
         }
         
-        // Continue loop
+        // SLOW: Refine with Gemini (background)
+        const geminiElapsed = now - this.lastGeminiTime;
+        if (geminiElapsed > this.config.geminiInterval && !this.geminiProcessing) {
+            this.lastGeminiTime = now;
+            this.refineLabelsWithGemini();
+        }
+        
         requestAnimationFrame(() => this.detectionLoop());
     },
     
     /**
-     * Process frame locally with TensorFlow.js - NO API CALLS!
+     * Fast detection with COCO-SSD - Instant AR overlays
      */
-    async processFrameLocal() {
+    async processFrameFast() {
         try {
             this.isProcessing = true;
-            this.updateConnectionStatus(true); // Always connected (local!)
+            this.updateConnectionStatus(true);
             
             const startTime = performance.now();
             
-            // Run COCO-SSD detection directly on video element
+            // Run COCO-SSD detection
             const predictions = await this.cocoModel.detect(this.video, undefined, this.config.minConfidence);
             
             const processingTime = performance.now() - startTime;
             
-            // Convert COCO-SSD predictions to our detection format
+            // Convert to our format and filter for traffic objects
             const detections = this.convertPredictionsToDetections(predictions);
             
-            // Process detections with AR tracking
+            // Update AR tracking with fast detections
             if (detections.length > 0) {
-                this.handleDetections(detections);
+                this.handleDetections(detections, 'fast');
             } else {
-                // Still update tracked objects even with no new detections
-                this.handleDetections([]);
+                this.handleDetections([], 'fast');
             }
             
-            // Log processing time
             if (this.frameCount % 30 === 0) {
-                console.log(`⚡ Detection: ${processingTime.toFixed(0)}ms, Objects: ${detections.length}`);
+                console.log(`⚡ COCO-SSD: ${processingTime.toFixed(0)}ms, Objects: ${detections.length}`);
             }
             
         } catch (error) {
-            console.error('Detection error:', error);
+            console.error('Fast detection error:', error);
         } finally {
             this.isProcessing = false;
         }
     },
     
     /**
-     * Convert COCO-SSD predictions to our detection format
-     * ONLY traffic signs (filters out people, cars, etc)
+     * Refine labels with Gemini - Background processing
+     */
+    async refineLabelsWithGemini() {
+        try {
+            this.geminiProcessing = true;
+            
+            // Capture frame for Gemini
+            const blob = await this.captureFrame();
+            if (!blob) return;
+            
+            const startTime = performance.now();
+            
+            // Convert to base64
+            const reader = new FileReader();
+            const base64Promise = new Promise((resolve) => {
+                reader.onloadend = () => resolve(reader.result);
+                reader.readAsDataURL(blob);
+            });
+            const base64 = await base64Promise;
+            
+            // Call Gemini API
+            const response = await fetch(this.config.apiEndpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    image: base64.split(',')[1],
+                    content_type: blob.type || 'image/webp'
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Gemini API error: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            const processingTime = performance.now() - startTime;
+            
+            // Refine tracked objects with Gemini labels
+            if (data.detections && data.detections.length > 0) {
+                this.refineTrackedObjects(data.detections);
+                console.log(`🧠 Gemini refined ${data.detections.length} labels in ${processingTime.toFixed(0)}ms`);
+            }
+            
+        } catch (error) {
+            console.warn('Gemini refinement failed (continuing with COCO-SSD):', error.message);
+        } finally {
+            this.geminiProcessing = false;
+        }
+    },
+    
+    /**
+     * Capture current video frame
+     */
+    captureFrame() {
+        return new Promise((resolve) => {
+            const ctx = this.capture.getContext('2d');
+            ctx.drawImage(this.video, 0, 0, this.capture.width, this.capture.height);
+            this.capture.toBlob((blob) => resolve(blob), 'image/webp', 0.4);
+        });
+    },
+    
+    /**
+     * Convert COCO-SSD predictions to detections (traffic objects only)
      */
     convertPredictionsToDetections(predictions) {
         return predictions
             .map(pred => {
-                // Map COCO class to traffic sign
                 const mapping = this.mapCocoClassToLabel(pred.class);
-                
-                // Skip non-traffic objects (people, cars, etc)
                 if (!mapping) return null;
                 
-                // Normalize bounding box to [0, 1] range
                 const bbox = [
-                    pred.bbox[0] / this.video.videoWidth,  // x
-                    pred.bbox[1] / this.video.videoHeight, // y
-                    pred.bbox[2] / this.video.videoWidth,  // width
-                    pred.bbox[3] / this.video.videoHeight  // height
+                    pred.bbox[0] / this.video.videoWidth,
+                    pred.bbox[1] / this.video.videoHeight,
+                    pred.bbox[2] / this.video.videoWidth,
+                    pred.bbox[3] / this.video.videoHeight
                 ];
                 
                 return {
                     label: mapping.label,
                     bbox: bbox,
                     color: mapping.color,
-                    confidence: pred.score
+                    confidence: pred.score,
+                    source: 'coco' // Mark as COCO-SSD detection
                 };
             })
-            .filter(d => d !== null); // Remove filtered objects
+            .filter(d => d !== null);
     },
     
     /**
-     * Map COCO-SSD classes to traffic signs only
-     * Filters out people, vehicles, and other objects
+     * Map COCO classes to traffic objects
      */
     mapCocoClassToLabel(cocoClass) {
         const mappings = {
-            // ONLY Traffic Signs and Signals
-            'traffic light': { label: '🚦 Traffic Light', color: 'yellow' },
+            'traffic light': { label: '🚦 Traffic Signal', color: 'yellow' },
             'stop sign': { label: '🛑 Stop Sign', color: 'red' },
+            'car': { label: '🚗 Vehicle', color: 'blue' },
+            'truck': { label: '🚛 Vehicle', color: 'blue' },
+            'bus': { label: '🚌 Vehicle', color: 'blue' },
+            'person': { label: '🚶 Pedestrian', color: 'orange' },
         };
         
-        // Return null for non-traffic objects (will be filtered out)
         return mappings[cocoClass] || null;
     },
     
     /**
-     * Handle detection results with AR tracking
+     * Refine tracked objects with Gemini labels
+     * Match by IoU and upgrade labels
      */
-    handleDetections(detections) {
+    refineTrackedObjects(geminiDetections) {
+        geminiDetections.forEach(geminiDet => {
+            // Find matching tracked object by position
+            let bestMatch = null;
+            let bestIoU = 0;
+            
+            this.trackedObjects.forEach(tracked => {
+                const iou = this.calculateIoU(geminiDet.bbox, tracked.smoothedBbox);
+                if (iou > bestIoU && iou > 0.3) {
+                    bestMatch = tracked;
+                    bestIoU = iou;
+                }
+            });
+            
+            // Upgrade label if match found
+            if (bestMatch) {
+                bestMatch.label = geminiDet.label;
+                bestMatch.color = geminiDet.color;
+                bestMatch.geminiRefined = true;
+                console.log(`🔄 Upgraded: ${bestMatch.label}`);
+            }
+        });
+    },
+    
+    /**
+     * Handle detections with AR tracking
+     */
+    handleDetections(detections, source) {
         this.lastDetections = detections;
         const currentTime = Date.now();
         
-        // Update tracked objects with new detections
+        // Update tracked objects
         this.updateTrackedObjects(detections, currentTime);
         
-        // Clear previous overlay
+        // Clear and redraw
         const ctx = this.overlay.getContext('2d');
         ctx.clearRect(0, 0, this.overlay.width, this.overlay.height);
         
-        // Draw ALL tracked objects (makes labels stick!)
+        // Draw all tracked objects
         this.trackedObjects.forEach(trackedObj => {
             let displayBbox = trackedObj.smoothedBbox;
             
-            // If object not detected recently, use predicted position
             if (trackedObj.missedFrames > 0) {
                 displayBbox = trackedObj.predictedBbox || trackedObj.smoothedBbox;
             }
@@ -431,17 +525,18 @@ const App = {
                 bbox: displayBbox,
                 color: trackedObj.color,
                 confidence: trackedObj.confidence,
-                isTracked: trackedObj.missedFrames > 0
+                isTracked: trackedObj.missedFrames > 0,
+                geminiRefined: trackedObj.geminiRefined || false
             };
             this.drawDetection(ctx, detection);
         });
         
-        // Generate audio feedback for important detections
+        // Audio feedback
         if (this.config.enableVoice && detections.length > 0) {
             this.generateAudioFeedback(detections);
         }
         
-        // Update detection panel
+        // Update panel
         const displayDetections = Array.from(this.trackedObjects.values()).map(obj => ({
             label: obj.label,
             bbox: obj.smoothedBbox,
@@ -452,10 +547,10 @@ const App = {
     },
     
     /**
-     * Update tracked objects with advanced AR tracking
+     * Update tracked objects with AR tracking
      */
     updateTrackedObjects(detections, currentTime) {
-        // STEP 1: Predict positions of existing objects
+        // Predict positions
         this.trackedObjects.forEach(obj => {
             obj.matched = false;
             obj.missedFrames = (obj.missedFrames || 0) + 1;
@@ -472,7 +567,7 @@ const App = {
             }
         });
         
-        // STEP 2: Match new detections to existing tracked objects
+        // Match detections
         const unmatchedDetections = [];
         
         detections.forEach(detection => {
@@ -483,7 +578,6 @@ const App = {
             
             this.trackedObjects.forEach(trackedObj => {
                 if (trackedObj.matched) return;
-                if (trackedObj.label !== detection.label) return;
                 
                 const iouPredicted = this.calculateIoU(detection.bbox, trackedObj.predictedBbox);
                 const iouCurrent = this.calculateIoU(detection.bbox, trackedObj.smoothedBbox);
@@ -499,11 +593,17 @@ const App = {
             });
             
             if (bestMatch) {
-                // UPDATE existing tracked object
+                // Update existing
                 bestMatch.matched = true;
                 bestMatch.missedFrames = 0;
                 bestMatch.lastSeen = currentTime;
                 bestMatch.confidence = detection.confidence;
+                
+                // Don't override Gemini-refined labels with COCO labels
+                if (!bestMatch.geminiRefined) {
+                    bestMatch.label = detection.label;
+                    bestMatch.color = detection.color;
+                }
                 
                 const newVelocity = this.calculateVelocity(bestMatch.bbox, detection.bbox);
                 bestMatch.velocity = [
@@ -515,7 +615,6 @@ const App = {
                 
                 bestMatch.bbox = detection.bbox;
                 
-                // Adaptive smoothing
                 const velocityMagnitude = Math.sqrt(newVelocity[0]**2 + newVelocity[1]**2);
                 const adaptiveSmoothingFactor = Math.min(this.smoothingFactor + velocityMagnitude * 2, 0.6);
                 
@@ -529,7 +628,7 @@ const App = {
             }
         });
         
-        // STEP 3: Create new tracked objects
+        // Create new tracked objects
         unmatchedDetections.forEach(detection => {
             const id = this.nextObjectId++;
             this.trackedObjects.set(id, {
@@ -543,11 +642,12 @@ const App = {
                 lastSeen: currentTime,
                 velocity: [0, 0, 0, 0],
                 missedFrames: 0,
-                matched: true
+                matched: true,
+                geminiRefined: false
             });
         });
         
-        // STEP 4: Remove stale objects
+        // Remove stale objects
         const idsToRemove = [];
         this.trackedObjects.forEach((obj, id) => {
             const age = currentTime - obj.lastSeen;
@@ -605,7 +705,7 @@ const App = {
     },
     
     /**
-     * Draw detection with Google Lens style
+     * Draw detection with visual indicator for Gemini-refined labels
      */
     drawDetection(ctx, detection) {
         const [x, y, w, h] = detection.bbox;
@@ -617,7 +717,7 @@ const App = {
         
         const color = this.getColorForLabel(detection.color);
         
-        // Different style for tracked vs detected
+        // Visual style
         if (detection.isTracked) {
             ctx.strokeStyle = color;
             ctx.globalAlpha = 0.6;
@@ -626,16 +726,16 @@ const App = {
         } else {
             ctx.strokeStyle = color;
             ctx.globalAlpha = 0.9;
-            ctx.lineWidth = 3;
+            ctx.lineWidth = detection.geminiRefined ? 4 : 3; // Thicker if Gemini refined
             ctx.setLineDash([]);
             ctx.shadowColor = color;
-            ctx.shadowBlur = 10;
+            ctx.shadowBlur = detection.geminiRefined ? 15 : 10; // More glow if refined
         }
         
         ctx.strokeRect(xCoord, yCoord, width, height);
         ctx.shadowBlur = 0;
         
-        // Label with rounded corners
+        // Label background
         ctx.globalAlpha = 0.85;
         ctx.fillStyle = color;
         const labelHeight = 28;
@@ -644,12 +744,15 @@ const App = {
         this.roundRect(ctx, xCoord, labelY, Math.max(width, 100), labelHeight, 5);
         ctx.fill();
         
-        // Text
+        // Label text
         ctx.globalAlpha = 1.0;
         ctx.fillStyle = '#fff';
         ctx.font = 'bold 15px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
         ctx.textBaseline = 'middle';
-        ctx.fillText(detection.label, xCoord + 8, labelY + labelHeight / 2);
+        
+        // Add indicator if Gemini refined
+        const labelText = detection.geminiRefined ? `✨ ${detection.label}` : detection.label;
+        ctx.fillText(labelText, xCoord + 8, labelY + labelHeight / 2);
         
         ctx.globalAlpha = 1.0;
     },
@@ -679,24 +782,21 @@ const App = {
         return colors[colorName] || colors['yellow'];
     },
     
-    /**
-     * Generate audio feedback for traffic signs
-     */
     generateAudioFeedback(detections) {
         if (!this.speechSynth) return;
         
         const now = Date.now();
-        if (now - this.lastSpeechTime < 3000) return; // Throttle speech
+        if (now - this.lastSpeechTime < 3000) return;
         
-        // Only speak for traffic signs (stop signs are high priority)
         const importantDetections = detections.filter(d => {
             const label = d.label.toLowerCase();
-            return label.includes('stop') || label.includes('traffic');
+            return label.includes('stop') || label.includes('walk') || 
+                   label.includes('pedestrian') || label.includes('traffic');
         });
         
         if (importantDetections.length > 0) {
             const detection = importantDetections[0];
-            const message = detection.label.replace(/[🚦🛑]/g, '').trim();
+            const message = detection.label.replace(/[🚦🛑🚶✨]/g, '').trim();
             
             if (message !== this.lastSpokenLabel) {
                 this.speechSynth.cancel();
@@ -712,9 +812,6 @@ const App = {
         }
     },
     
-    /**
-     * Update detection panel
-     */
     updateDetectionPanel(detections) {
         const panel = document.getElementById('detection-panel');
         const list = document.getElementById('detection-list');
