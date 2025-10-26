@@ -17,6 +17,7 @@
 ```
 
 **Best of both worlds:**
+
 - ⚡ **Fast**: COCO-SSD gives instant visual feedback
 - 🎯 **Accurate**: Gemini refines labels in background
 - 🎨 **AR**: Labels stick smoothly to objects in 3D space
@@ -103,12 +104,14 @@ python -m http.server 8080
 ## 🎯 What It Detects
 
 ### COCO-SSD (Instant)
+
 - 🚦 Traffic lights
 - 🛑 Stop signs
 - 🚗 Vehicles (cars, trucks, buses)
 - 🚶 Pedestrians
 
 ### Gemini (Refined)
+
 - 🚦 Walk/Don't Walk signals
 - 🛑 All traffic signs (stop, yield, speed limit, etc.)
 - ⚠️ Road hazards
@@ -120,6 +123,7 @@ python -m http.server 8080
 ## 📱 Deployment
 
 ### Local Development
+
 ```bash
 python server.py  # Backend on :8000
 python -m http.server 8080  # Frontend on :8080
@@ -130,6 +134,7 @@ python -m http.server 8080  # Frontend on :8080
 **Option 1: Backend on Render + Frontend on Vercel**
 
 1. **Deploy Backend** (Render/Railway/Heroku):
+
 ```bash
 # Push to GitHub
 git push origin main
@@ -143,6 +148,7 @@ git push origin main
 ```
 
 2. **Deploy Frontend** (Vercel/Netlify):
+
 ```bash
 # Update script.js config.apiEndpoint to your backend URL
 # Then deploy to Vercel
@@ -150,6 +156,7 @@ vercel
 ```
 
 **Option 2: Single Server**
+
 - Deploy entire app to one server
 - Backend serves API + static files
 - Simpler but less scalable
@@ -170,6 +177,7 @@ config: {
 ```
 
 Adjust for your needs:
+
 - **Faster COCO**: Lower `processingInterval` (more CPU)
 - **More Gemini**: Lower `geminiInterval` (more API calls)
 - **Less noise**: Increase `minConfidence`
@@ -202,13 +210,13 @@ Adjust for your needs:
 
 ## 📊 Performance
 
-| Metric | Value |
-|--------|-------|
-| **COCO-SSD Latency** | 50-150ms |
-| **COCO-SSD FPS** | 10-30 FPS |
-| **Gemini Latency** | 500-2000ms |
-| **Gemini Frequency** | 0.5 FPS (every 2s) |
-| **AR Tracking** | Smooth 60 FPS |
+| Metric               | Value                  |
+| -------------------- | ---------------------- |
+| **COCO-SSD Latency** | 50-150ms               |
+| **COCO-SSD FPS**     | 10-30 FPS              |
+| **Gemini Latency**   | 500-2000ms             |
+| **Gemini Frequency** | 0.5 FPS (every 2s)     |
+| **AR Tracking**      | Smooth 60 FPS          |
 | **Total Model Size** | ~13 MB (COCO-SSD only) |
 
 ---
@@ -216,11 +224,13 @@ Adjust for your needs:
 ## 💰 Cost Estimate
 
 **Gemini API** (Free tier):
+
 - 15 requests per minute
 - 1,500 requests per day
 - ~$0.01 per 100 requests after free tier
 
 **Usage**:
+
 - 0.5 requests/second = 30 requests/minute
 - ~1,800 requests/hour
 - Should stay within free tier for testing!
@@ -230,17 +240,20 @@ Adjust for your needs:
 ## 🐛 Troubleshooting
 
 ### COCO-SSD works but no Gemini refinement
+
 - Check backend is running (`python server.py`)
 - Verify `GEMINI_API_KEY` in `.env`
 - Check browser console for API errors
 - Confirm `config.apiEndpoint` is correct
 
 ### Slow performance
+
 - Increase `processingInterval` (lower FPS)
 - Increase `geminiInterval` (less refinement)
 - Use better device/browser
 
 ### Labels not sticking
+
 - Enable device motion sensors in settings
 - Keep device steady during initial detection
 - Check AR tracking parameters in code
@@ -249,13 +262,13 @@ Adjust for your needs:
 
 ## 🎯 Architecture Benefits
 
-| Aspect | Pure COCO-SSD | Pure Gemini | Hybrid (This!) |
-|--------|---------------|-------------|----------------|
-| Speed | ⚡ Instant | 🐢 Slow | ⚡ Instant |
-| Accuracy | ✅ Good (70%) | 🎯 Excellent (95%) | 🎯 Excellent (95%) |
-| Offline | ✅ Yes | ❌ No | ⚠️ Partial |
-| Cost | 💚 Free | 💰 Paid | 💚 Mostly Free |
-| UX | ⚡ Instant | ⏰ Laggy | ⚡ Instant + Refined |
+| Aspect   | Pure COCO-SSD | Pure Gemini        | Hybrid (This!)       |
+| -------- | ------------- | ------------------ | -------------------- |
+| Speed    | ⚡ Instant    | 🐢 Slow            | ⚡ Instant           |
+| Accuracy | ✅ Good (70%) | 🎯 Excellent (95%) | 🎯 Excellent (95%)   |
+| Offline  | ✅ Yes        | ❌ No              | ⚠️ Partial           |
+| Cost     | 💚 Free       | 💰 Paid            | 💚 Mostly Free       |
+| UX       | ⚡ Instant    | ⏰ Laggy           | ⚡ Instant + Refined |
 
 ---
 
@@ -299,6 +312,7 @@ python -m http.server 8080
 ## 🎉 Credits
 
 Built with:
+
 - [TensorFlow.js](https://www.tensorflow.org/js)
 - [COCO-SSD Model](https://github.com/tensorflow/tfjs-models/tree/master/coco-ssd)
 - [Google Gemini API](https://ai.google.dev/)
