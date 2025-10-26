@@ -691,23 +691,30 @@ const App = {
      * Announce a sign label using speech synthesis
      */
     announceSign(label) {
+        console.log(`🎤 announceSign called with: "${label}"`);
+        
         // Don't re-announce the same label within 10 seconds
         if (this.announcedLabels.has(label)) {
+            console.log(`   ⏭️  Skipped (already announced recently)`);
             return;
         }
         
         this.announcedLabels.add(label);
+        console.log(`   ✅ Added to announced set`);
         
         // Remove from announced set after 10 seconds
         setTimeout(() => {
             this.announcedLabels.delete(label);
+            console.log(`   🔄 Cooldown expired for: "${label}"`);
         }, 10000);
         
         // Add to queue
         this.audioQueue.push(label);
+        console.log(`   📝 Added to queue (queue length: ${this.audioQueue.length})`);
         
         // Process queue if not already processing
         if (this.audioQueue.length === 1) {
+            console.log(`   ▶️  Starting audio queue processing`);
             this.processAudioQueue();
         }
     },
@@ -716,22 +723,36 @@ const App = {
      * Process audio queue one by one
      */
     processAudioQueue() {
-        if (this.audioQueue.length === 0) return;
+        console.log(`🎵 processAudioQueue called (queue length: ${this.audioQueue.length})`);
+        
+        if (this.audioQueue.length === 0) {
+            console.log(`   ℹ️  Queue empty, stopping`);
+            return;
+        }
         
         const label = this.audioQueue[0];
         
         // Clean up label (remove emojis)
         const cleanLabel = label.replace(/[🚦🛑🔍✨⚠️]/g, '').trim();
         
-        console.log(`🔊 Announcing: "${cleanLabel}"`);
+        console.log(`🔊 SPEAKING NOW: "${cleanLabel}"`);
         
         if ('speechSynthesis' in window) {
+            console.log(`   ✅ speechSynthesis available`);
+            console.log(`   📊 speechSynthesis.speaking: ${window.speechSynthesis.speaking}`);
+            console.log(`   📊 speechSynthesis.pending: ${window.speechSynthesis.pending}`);
+            
             const utterance = new SpeechSynthesisUtterance(cleanLabel);
-            utterance.rate = 1.1; // Slightly faster
+            utterance.rate = 1.1;
             utterance.pitch = 1.0;
-            utterance.volume = 0.8;
+            utterance.volume = 1.0; // Max volume
+            
+            utterance.onstart = () => {
+                console.log(`   ▶️  Speech STARTED: "${cleanLabel}"`);
+            };
             
             utterance.onend = () => {
+                console.log(`   ✅ Speech ENDED: "${cleanLabel}"`);
                 // Remove from queue and process next
                 this.audioQueue.shift();
                 
@@ -742,14 +763,16 @@ const App = {
             };
             
             utterance.onerror = (e) => {
-                console.error('Speech synthesis error:', e);
+                console.error(`   ❌ Speech ERROR:`, e);
                 this.audioQueue.shift();
                 this.processAudioQueue();
             };
             
+            console.log(`   🎤 Calling speechSynthesis.speak()...`);
             window.speechSynthesis.speak(utterance);
+            console.log(`   ✅ speechSynthesis.speak() called`);
         } else {
-            console.warn('Speech synthesis not supported');
+            console.warn(`   ❌ Speech synthesis NOT SUPPORTED in this browser`);
             this.audioQueue.shift();
         }
     },
