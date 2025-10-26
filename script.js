@@ -75,6 +75,10 @@ const App = {
     maxTrackingAge: 2000,
     maxMissedFrames: 10,
     
+    // Audio announcements for signs
+    announcedLabels: new Set(),
+    audioQueue: [],
+    
     // Camera motion tracking
     gyroData: { alpha: 0, beta: 0, gamma: 0 },
     accelData: { x: 0, y: 0, z: 0 },
