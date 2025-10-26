@@ -456,15 +456,14 @@ const App = {
     
     /**
      * Map COCO classes to traffic objects
+     * Note: Filter out 'person' detections - they're often sign symbols, let Gemini handle them
      */
     mapCocoClassToLabel(cocoClass) {
         const mappings = {
             'traffic light': { label: '🚦 Traffic Signal', color: 'yellow' },
             'stop sign': { label: '🛑 Stop Sign', color: 'red' },
-            'car': { label: '🚗 Vehicle', color: 'blue' },
-            'truck': { label: '🚛 Vehicle', color: 'blue' },
-            'bus': { label: '🚌 Vehicle', color: 'blue' },
-            'person': { label: '🚶 Pedestrian', color: 'orange' },
+            // Removed 'person' - causes false positives on sign symbols
+            // Gemini will detect actual pedestrians and sign symbols correctly
         };
         
         return mappings[cocoClass] || null;

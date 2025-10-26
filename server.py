@@ -84,28 +84,53 @@ async def analyze_image(request: AnalyzeRequest):
         }]
         
         # Prompt for traffic sign and hazard detection
-        prompt = """Analyze this image for traffic signs, road hazards, and important objects.
+        prompt = """Analyze this image for SIGNS and SIGNALS only. Distinguish between signs and people.
 
-Detect ONLY:
-- Traffic signs (stop, yield, speed limit, no entry, one way, etc.)
-- Pedestrian signals (walk, don't walk, hand signals)
-- Road hazards (construction, debris, potholes)
-- Traffic lights (specify color/state if visible)
-- Vehicles (if hazardous or blocking path)
-- Pedestrians (if in roadway)
+CRITICAL: Look for physical SIGNS with symbols on them, NOT actual people walking.
+
+Detect these SIGNS/SIGNALS ONLY:
+1. **Pedestrian Signs** (physical signs, not people):
+   - "No Pedestrian Sign" (white with red circle/slash) → label as "No Walk Sign"
+   - "Pedestrian Crossing Sign" (yellow diamond with person) → label as "Walk Sign" or "Pedestrian Crossing"
+   
+2. **Pedestrian Signals** (traffic light type):
+   - Walk signal (green/white hand or person) → label as "Walk Signal - Green"
+   - Don't Walk signal (red hand or person) → label as "Don't Walk - Red"
+   
+3. **Traffic Signs**:
+   - Stop signs, yield signs, speed limit signs, etc.
+   
+4. **Traffic Lights**:
+   - Specify color/state (red, yellow, green)
+
+5. **Actual Pedestrians**:
+   - ONLY if there's a real person in the scene (not on a sign)
+   - Label as "Pedestrian" only if it's a living person
+
+IMPORTANT:
+- Do NOT confuse sign symbols with real people
+- A person silhouette ON a sign = it's a SIGN, not a pedestrian
+- White square signs with person + red circle = "No Walk Sign"
+- Yellow diamond signs with person = "Pedestrian Crossing" or "Walk Sign"
 
 For each detected object, provide:
-1. Precise label (e.g., "Stop Sign", "Walk Signal - Green", "No Entry Sign")
+1. Precise label (e.g., "No Walk Sign", "Walk Signal - Green", "Stop Sign")
 2. Bounding box coordinates [x, y, width, height] as percentages (0-100)
 3. Confidence score (0-100)
 
 Return ONLY valid JSON array with this exact format:
 [
   {
-    "label": "Stop Sign",
+    "label": "No Walk Sign",
     "bbox": [45.2, 30.1, 12.5, 18.3],
     "color": "red",
     "confidence": 95
+  },
+  {
+    "label": "Pedestrian Crossing",
+    "bbox": [65.0, 35.0, 10.0, 15.0],
+    "color": "yellow",
+    "confidence": 90
   }
 ]
 
