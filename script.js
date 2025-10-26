@@ -284,7 +284,8 @@ const App = {
         
         document.getElementById('start-btn').disabled = true;
         document.getElementById('pause-btn').disabled = false;
-        document.getElementById('loading').classList.add('visible');
+        // Hide loading icon - don't show it
+        document.getElementById('loading').style.display = 'none';
         
         this.detectionLoop();
         
@@ -553,7 +554,8 @@ const App = {
                         ],
                         color: color,
                         confidence: 0.3,
-                        source: 'generic'
+                        source: 'generic',
+                        hide: true  // Flag to hide from display
                     });
                 }
             }
@@ -771,7 +773,13 @@ const App = {
         const label = this.audioQueue[0];
         
         // Clean up label (remove emojis)
-        const cleanLabel = label.replace(/[🚦🛑🔍✨⚠️]/g, '').trim();
+        let cleanLabel = label.replace(/[🚦🛑🔍✨⚠️]/g, '').trim();
+        
+        // Special handling for street names
+        if (cleanLabel.startsWith('Street: ')) {
+            cleanLabel = cleanLabel.replace('Street: ', 'You are on ');
+            console.log(`   📍 Converted to: "${cleanLabel}"`);
+        }
         
         console.log(`🔊 SPEAKING NOW: "${cleanLabel}"`);
         
@@ -840,6 +848,11 @@ const App = {
         // Draw all tracked objects
         let drawnCount = 0;
         this.trackedObjects.forEach(trackedObj => {
+            // Skip "Analyzing" signs and hidden objects
+            if (trackedObj.label.includes('Analyzing') || trackedObj.hide) {
+                return;
+            }
+            
             let displayBbox = trackedObj.smoothedBbox;
             
             if (trackedObj.missedFrames > 0) {
@@ -1147,7 +1160,21 @@ const App = {
         const panel = document.getElementById('detection-panel');
         const list = document.getElementById('detection-list');
         
+        // Don't display the panel at all
+        panel.classList.remove('visible');
+        panel.style.display = 'none';
+        return;
+        
+        // Keep below code for potential future use but disabled
         if (!detections || detections.length === 0) {
+            panel.classList.remove('visible');
+            return;
+        }
+        
+        // Filter out hidden detections
+        const visibleDetections = detections.filter(d => !d.hide);
+        
+        if (visibleDetections.length === 0) {
             panel.classList.remove('visible');
             return;
         }
@@ -1155,7 +1182,7 @@ const App = {
         panel.classList.add('visible');
         list.innerHTML = '';
         
-        detections.forEach(detection => {
+        visibleDetections.forEach(detection => {
             const item = document.createElement('div');
             item.className = 'detection-item';
             item.innerHTML = `
@@ -1176,11 +1203,11 @@ const App = {
         if (this.isPaused) {
             icon.textContent = '▶';
             text.textContent = 'Resume';
-            document.getElementById('loading').classList.remove('visible');
+            document.getElementById('loading').style.display = 'none';
         } else {
             icon.textContent = '⏸';
             text.textContent = 'Pause';
-            document.getElementById('loading').classList.add('visible');
+            document.getElementById('loading').style.display = 'none';
             this.detectionLoop();
         }
     },

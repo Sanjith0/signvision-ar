@@ -5,6 +5,8 @@ Provides accurate sign classification for COCO-SSD detections
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import google.generativeai as genai
 import os
@@ -59,6 +61,10 @@ class AnalyzeResponse(BaseModel):
 
 @app.get("/")
 async def root():
+    return FileResponse('index.html')
+
+@app.get("/api/status")
+async def api_status():
     return {"status": "SignVision Gemini Refinement API", "version": "2.0"}
 
 @app.post("/analyze", response_model=AnalyzeResponse)
@@ -83,7 +89,7 @@ async def analyze_image(request: AnalyzeRequest):
             "data": image_data
         }]
         
-        # Prompt for traffic sign and hazard detection
+        # Prompt for traffic sign and hazard detection with OCR
         prompt = """TRAFFIC SIGNS AND ROAD SIGNS ONLY. Ignore everything else.
 
 DO NOT DETECT:
@@ -94,26 +100,32 @@ DO NOT DETECT:
 
 ONLY DETECT THESE ROAD SIGNS:
 
-1. **Pedestrian Signs** (physical signs on poles):
+1. **Street Name Signs** (Street Signs):
+   - Green street signs with white text (most common) → "Street: [READ THE TEXT]"
+   - Blue street signs with white text → "Street: [READ THE TEXT]"
+   - White street signs with black text → "Street: [READ THE TEXT]"
+   - Example: If you see "MAIN ST" → "Street: Main Street"
+   
+2. **Pedestrian Signs** (physical signs on poles):
    - White square sign with person + red circle/diagonal line → "No Walk Sign"
    - Yellow diamond sign with walking person symbol → "Pedestrian Crossing"
    
-2. **Pedestrian Signals** (traffic light type):
+3. **Pedestrian Signals** (traffic light type):
    - Walk signal (green hand/person) → "Walk Signal - Green"
    - Don't Walk signal (red hand/person) → "Don't Walk - Red"
    
-3. **Traffic Control Signs**:
+4. **Traffic Control Signs**:
    - Stop sign (red octagon) → "Stop Sign"
    - Yield sign → "Yield Sign"
    - Speed limit signs → "Speed Limit [number]"
    - One way, no entry, etc.
    
-4. **Traffic Lights**:
+5. **Traffic Lights**:
    - "Traffic Light - Red"
    - "Traffic Light - Yellow"
    - "Traffic Light - Green"
 
-5. **Warning Signs**:
+6. **Warning Signs**:
    - Construction signs
    - Curve warning
    - Merge warning
@@ -124,13 +136,16 @@ STRICT RULES:
 - Ignore all vehicles
 - Ignore all handheld objects
 - If you see a person silhouette ON a sign, that's a SIGN not a person
+- **FOR STREET SIGNS: READ AND INCLUDE THE ACTUAL TEXT** - Extract street names using OCR
+- Use format "Street: [exact street name text]" in the label
+- Example: Green sign showing "PARK AVE" → label should be "Street: Park Avenue"
 
 Response format (JSON only):
 [
   {
-    "label": "No Walk Sign",
+    "label": "Street: Main Street",
     "bbox": [x, y, width, height],
-    "color": "red",
+    "color": "green",
     "confidence": 95
   }
 ]
@@ -146,7 +161,7 @@ BBOX FORMAT:
 Example: Sign at 25% from left, 30% from top, 15% wide, 20% tall:
   "bbox": [25, 30, 15, 20]
 
-Colors: red (danger), yellow (caution), green (safe), blue (info), orange (construction)
+Colors: red (danger), yellow (caution), green (safe/street signs), blue (info), orange (construction)
 
 If no SIGNS, return: []"""
         
@@ -253,6 +268,20 @@ If no SIGNS, return: []"""
     except Exception as e:
         logger.error(f"Analysis error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+# Serve static files (must be LAST after all API routes)
+@app.get("/{filename}")
+async def serve_static(filename: str):
+    # Block serving sensitive files
+    if filename.endswith(('.py', '.env', '.git', '.md')):
+        return {"error": "File not found"}
+    
+    # Serve specific static files
+    if filename in ['style.css', 'script.js', 'sw.js', 'manifest.json']:
+        return FileResponse(filename)
+    
+    # For any other requests, serve index.html (for SPA)
+    return FileResponse('index.html')
 
 if __name__ == "__main__":
     import uvicorn

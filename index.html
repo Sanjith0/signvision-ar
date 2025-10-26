@@ -45,8 +45,8 @@
             <!-- Hidden Canvas for image capture and processing -->
             <canvas id="capture" style="display: none;"></canvas>
             
-            <!-- Loading indicator -->
-            <div id="loading" class="loading-overlay">
+            <!-- Loading indicator - Hidden -->
+            <div id="loading" class="loading-overlay" style="display: none;">
                 <div class="spinner"></div>
                 <p>Processing frame...</p>
             </div>
@@ -64,7 +64,8 @@
                 <span>Pause</span>
             </button>
             
-            <button id="record-btn" class="control-btn secondary">
+            <!-- Record button hidden -->
+            <button id="record-btn" class="control-btn secondary" style="display: none;">
                 <span class="icon">●</span>
                 <span id="record-text">Record</span>
             </button>
@@ -76,7 +77,7 @@
         </div>
 
         <!-- Detection Results Panel -->
-        <div class="detection-panel" id="detection-panel">
+        <div class="detection-panel" id="detection-panel" style="display: none;">
             <h3>Detected Objects</h3>
             <div id="detection-list"></div>
         </div>
