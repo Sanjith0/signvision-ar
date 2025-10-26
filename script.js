@@ -478,7 +478,11 @@ const App = {
      * Match by IoU and upgrade labels
      */
     refineTrackedObjects(geminiDetections) {
+        console.log(`🧠 Gemini sent ${geminiDetections.length} detections`);
+        
         geminiDetections.forEach(geminiDet => {
+            console.log(`  - Label: "${geminiDet.label}", bbox: [${geminiDet.bbox.map(v => v.toFixed(2)).join(', ')}]`);
+            
             // Find matching tracked object by position
             let bestMatch = null;
             let bestIoU = 0;
@@ -496,7 +500,25 @@ const App = {
                 bestMatch.label = geminiDet.label;
                 bestMatch.color = geminiDet.color;
                 bestMatch.geminiRefined = true;
-                console.log(`🔄 Upgraded: ${bestMatch.label}`);
+                console.log(`  ✅ Upgraded existing object to: ${bestMatch.label}`);
+            } else {
+                // If no match, create new tracked object from Gemini detection
+                const id = this.nextObjectId++;
+                this.trackedObjects.set(id, {
+                    id: id,
+                    label: geminiDet.label,
+                    bbox: geminiDet.bbox,
+                    smoothedBbox: geminiDet.bbox,
+                    predictedBbox: geminiDet.bbox,
+                    color: geminiDet.color,
+                    confidence: geminiDet.confidence,
+                    lastSeen: Date.now(),
+                    velocity: [0, 0, 0, 0],
+                    missedFrames: 0,
+                    matched: true,
+                    geminiRefined: true
+                });
+                console.log(`  ✨ Created new Gemini detection: ${geminiDet.label}`);
             }
         });
     },
@@ -508,14 +530,23 @@ const App = {
         this.lastDetections = detections;
         const currentTime = Date.now();
         
+        // DEBUG: Log incoming detections
+        if (detections.length > 0) {
+            console.log(`📥 ${source} detections:`, detections.map(d => d.label));
+        }
+        
         // Update tracked objects
         this.updateTrackedObjects(detections, currentTime);
+        
+        // DEBUG: Log tracked objects
+        console.log(`🎯 Tracked objects: ${this.trackedObjects.size}`);
         
         // Clear and redraw
         const ctx = this.overlay.getContext('2d');
         ctx.clearRect(0, 0, this.overlay.width, this.overlay.height);
         
         // Draw all tracked objects
+        let drawnCount = 0;
         this.trackedObjects.forEach(trackedObj => {
             let displayBbox = trackedObj.smoothedBbox;
             
@@ -532,7 +563,12 @@ const App = {
                 geminiRefined: trackedObj.geminiRefined || false
             };
             this.drawDetection(ctx, detection);
+            drawnCount++;
         });
+        
+        if (drawnCount > 0) {
+            console.log(`🎨 Drew ${drawnCount} detections on overlay`);
+        }
         
         // Audio feedback
         if (this.config.enableVoice && detections.length > 0) {
