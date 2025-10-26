@@ -428,10 +428,15 @@ const App = {
     },
     
     /**
-     * Convert COCO-SSD predictions to detections (traffic objects only)
+     * Convert COCO-SSD predictions to detections (TRAFFIC SIGNS ONLY)
+     * Aggressively filter out everything except traffic signs
      */
     convertPredictionsToDetections(predictions) {
+        // Whitelist of ONLY traffic sign classes we want
+        const ALLOWED_CLASSES = ['traffic light', 'stop sign'];
+        
         return predictions
+            .filter(pred => ALLOWED_CLASSES.includes(pred.class)) // Only allow traffic signs
             .map(pred => {
                 const mapping = this.mapCocoClassToLabel(pred.class);
                 if (!mapping) return null;
@@ -455,15 +460,14 @@ const App = {
     },
     
     /**
-     * Map COCO classes to traffic objects
-     * Note: Filter out 'person' detections - they're often sign symbols, let Gemini handle them
+     * Map COCO classes to traffic signs ONLY
+     * STRICT whitelist - only these 2 classes allowed
      */
     mapCocoClassToLabel(cocoClass) {
+        // ONLY traffic signs - nothing else!
         const mappings = {
             'traffic light': { label: '🚦 Traffic Signal', color: 'yellow' },
-            'stop sign': { label: '🛑 Stop Sign', color: 'red' },
-            // Removed 'person' - causes false positives on sign symbols
-            // Gemini will detect actual pedestrians and sign symbols correctly
+            'stop sign': { label: '🛑 Stop Sign', color: 'red' }
         };
         
         return mappings[cocoClass] || null;
